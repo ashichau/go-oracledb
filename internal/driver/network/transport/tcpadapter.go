@@ -151,7 +151,7 @@ func (nt *nttcp) Send(ctx context.Context, buf []byte) error {
 func (nt *nttcp) Receive(ctx context.Context, buf []byte, bytes2Read int) (int, error) {
 
 	if bytes2Read > len(buf) {
-		return 0, common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("buffer too small: have %d want %d", len(buf), bytes2Read))
+		return 0, common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "buffer too small", len(buf), bytes2Read)
 	}
 
 	var ctxToBeUsed context.Context

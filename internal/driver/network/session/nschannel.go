@@ -41,7 +41,6 @@ package session
 import (
 	"context"
 	"encoding/binary"
-	"fmt"
 	"io"
 
 	"github.com/oracle/go-oracledb/v26/internal/common"
@@ -53,7 +52,6 @@ type NSChannel interface {
 	PrepareReadBuffer(ctx context.Context) error
 	Write(ctx context.Context, buf []byte) error
 	CancelOperation(ctx context.Context) error
-	SendInterrupt(ctx context.Context) error
 	SendReset(ctx context.Context) error
 	Flush(ctx context.Context) error
 	IsInBreakReset() bool
@@ -90,7 +88,7 @@ func (ns *networkSession) ReadByteWithContext(ctx context.Context) (byte, error)
 
 func (ns *networkSession) ReadBytesWithContext(ctx context.Context, length int32) (*[]byte, error) {
 	if length < 0 {
-		return nil, common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("invalid byte length: %d", length))
+		return nil, common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "invalid buffer length", length, 0)
 	}
 	return ns.readNBytes(ctx, int(length))
 }
@@ -398,11 +396,6 @@ func (ns *networkSession) CancelOperation(ctx context.Context) error {
 		return err
 	}
 	return nil
-}
-
-func (ns *networkSession) SendInterrupt(ctx context.Context) error {
-	// Placeholder: Implement interrupt logic if needed
-	return common.NewOracleError(oracleErrors.InternalError, nil, "send interrupt is not implemented")
 }
 
 func (ns *networkSession) SendReset(ctx context.Context) error {

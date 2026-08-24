@@ -45,7 +45,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/pem"
-	"fmt"
 	"net"
 	"strings"
 	"unicode/utf8"
@@ -286,7 +285,7 @@ func (nt *nttcps) processWallet() error {
 				Bytes: privateKeyBytes,
 			})
 		default:
-			return common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("unknown PEM block type: %s", block.Type))
+			return common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "unknown PEM block type", block.Type)
 		}
 	}
 
@@ -430,7 +429,7 @@ func parseDNAttribute(str string) (pkix.AttributeTypeAndValue, error) {
 		return pkix.AttributeTypeAndValue{}, err
 	}
 	if equalIndex < 0 {
-		return pkix.AttributeTypeAndValue{}, common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("malformed DN attribute %q", str))
+		return pkix.AttributeTypeAndValue{}, common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "malformed DN attribute", str)
 	}
 
 	name := strings.ToUpper(strings.TrimSpace(str[:equalIndex]))
@@ -440,12 +439,12 @@ func parseDNAttribute(str string) (pkix.AttributeTypeAndValue, error) {
 
 	oid, supported := dnNameToOID[name]
 	if !supported {
-		return pkix.AttributeTypeAndValue{}, common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("unsupported DN attribute %q", name))
+		return pkix.AttributeTypeAndValue{}, common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "unsupported DN attribute", name)
 	}
 
 	rawValue := trimDNValueSpace(str[equalIndex+1:])
 	if rawValue == "" {
-		return pkix.AttributeTypeAndValue{}, common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("empty DN attribute value for %q", name))
+		return pkix.AttributeTypeAndValue{}, common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "empty DN attribute value", name)
 	}
 	if rawValue[0] == '#' {
 		return pkix.AttributeTypeAndValue{}, common.NewOracleError(oracleErrors.InternalError, nil, "hex-encoded DN values are not supported")
@@ -456,7 +455,7 @@ func parseDNAttribute(str string) (pkix.AttributeTypeAndValue, error) {
 		return pkix.AttributeTypeAndValue{}, err
 	}
 	if value == "" {
-		return pkix.AttributeTypeAndValue{}, common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("empty DN attribute value for %q", name))
+		return pkix.AttributeTypeAndValue{}, common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "empty DN attribute value", name)
 	}
 
 	return pkix.AttributeTypeAndValue{Type: oid, Value: value}, nil
@@ -545,7 +544,7 @@ func decodeDNValue(str string) (string, error) {
 
 		next := str[i+1]
 		if !isEscapableDNChar(next) {
-			return "", common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("malformed DN escape %q", str[i:i+2]))
+			return "", common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "malformed DN escape", str[i:i+2])
 		}
 		out = append(out, next)
 		i++
@@ -595,12 +594,12 @@ func verifyDN(cert *x509.Certificate, dnString string) error {
 	}
 
 	if len(configured) != len(certSubject) {
-		return common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("DN mismatch: configured DN has %d RDNs but server certificate subject has %d", len(configured), len(certSubject)))
+		return common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "DN RDN count", len(certSubject), len(configured))
 	}
 
 	for i := range configured {
 		if err := compareRDNs(configured[i], certSubject[i]); err != nil {
-			return common.NewOracleError(oracleErrors.InternalError, err, fmt.Sprintf("DN mismatch at RDN %d", i))
+			return common.NewOracleError(oracleErrors.InvalidNetworkValue, err, "DN mismatch at RDN", i)
 		}
 	}
 	return nil
@@ -610,7 +609,7 @@ func verifyDN(cert *x509.Certificate, dnString string) error {
 // not matter, but each supported OID and value must match exactly.
 func compareRDNs(configured, certSubject pkix.RelativeDistinguishedNameSET) error {
 	if len(configured) != len(certSubject) {
-		return common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("configured RDN has %d attributes but server certificate RDN has %d", len(configured), len(certSubject)))
+		return common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "DN RDN attribute count", len(certSubject), len(configured))
 	}
 
 	if err := validateRDN(configured, "configured DN"); err != nil {
@@ -623,7 +622,7 @@ func compareRDNs(configured, certSubject pkix.RelativeDistinguishedNameSET) erro
 	for _, configuredAttr := range configured {
 		configuredValue, ok := configuredAttr.Value.(string)
 		if !ok {
-			return common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("configured DN attribute OID %s has non-string value", configuredAttr.Type))
+			return common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "configured DN attribute OID has non-string value", configuredAttr.Type)
 		}
 
 		found := false
@@ -634,15 +633,15 @@ func compareRDNs(configured, certSubject pkix.RelativeDistinguishedNameSET) erro
 			found = true
 			certValue, ok := certAttr.Value.(string)
 			if !ok {
-				return common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("server certificate subject attribute OID %s has non-string value", certAttr.Type))
+				return common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "server certificate subject attribute OID has non-string value", certAttr.Type)
 			}
 			if certValue != configuredValue {
-				return common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("attribute OID %s: expected %q but got %q", configuredAttr.Type, configuredValue, certValue))
+				return common.NewOracleError(oracleErrors.InvalidNetworkContextExpectedValue, nil, "DN attribute value", configuredAttr.Type.String(), certValue, configuredValue)
 			}
 			break
 		}
 		if !found {
-			return common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("configured attribute OID %s not found in server certificate subject", configuredAttr.Type))
+			return common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "configured attribute OID not found in server certificate subject", configuredAttr.Type)
 		}
 	}
 	return nil
@@ -654,15 +653,15 @@ func validateRDN(rdn pkix.RelativeDistinguishedNameSET, source string) error {
 	for i, atv := range rdn {
 		oid := atv.Type.String()
 		if _, supported := supportedDNOIDs[oid]; !supported {
-			return common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("%s contains unsupported attribute OID %s", source, atv.Type))
+			return common.NewOracleError(oracleErrors.InvalidNetworkContextValue, nil, "contains unsupported attribute OID", source, atv.Type)
 		}
 
 		if _, ok := atv.Value.(string); !ok {
-			return common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("%s attribute OID %s has non-string value", source, atv.Type))
+			return common.NewOracleError(oracleErrors.InvalidNetworkContextValue, nil, "attribute OID has non-string value", source, atv.Type)
 		}
 		for j := 0; j < i; j++ {
 			if rdn[j].Type.Equal(atv.Type) {
-				return common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("%s contains duplicate attribute OID %s within RDN", source, atv.Type))
+				return common.NewOracleError(oracleErrors.InvalidNetworkContextValue, nil, "contains duplicate attribute OID within RDN", source, atv.Type)
 			}
 		}
 	}

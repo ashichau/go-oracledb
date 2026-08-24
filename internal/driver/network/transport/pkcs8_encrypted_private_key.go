@@ -50,7 +50,6 @@ import (
 	"encoding/asn1"
 	"encoding/pem"
 	"errors"
-	"fmt"
 	"hash"
 
 	"github.com/oracle/go-oracledb/v26/internal/common"
@@ -124,7 +123,7 @@ func parsePKCS8EncryptedPrivateKey(block *pem.Block, password []byte) (interface
 		return nil, errors.New("pem_decrypt: pem block is nil")
 	}
 	if block.Type != "ENCRYPTED PRIVATE KEY" {
-		return nil, common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("pem_decrypt: unexpected PEM type %q, want ENCRYPTED PRIVATE KEY", block.Type))
+		return nil, common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "pem_decrypt PEM type", block.Type, "ENCRYPTED PRIVATE KEY")
 	}
 
 	// Step 1: Decode the outer EncryptedPrivateKeyInfo envelope directly from block.Bytes.
@@ -134,7 +133,7 @@ func parsePKCS8EncryptedPrivateKey(block *pem.Block, password []byte) (interface
 	}
 
 	if !encInfo.Algorithm.OID.Equal(oidPBES2) {
-		return nil, common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("pem_decrypt: unsupported key encryption algorithm OID: %v", encInfo.Algorithm.OID))
+		return nil, common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "pem_decrypt: unsupported key encryption algorithm OID", encInfo.Algorithm.OID)
 	}
 
 	// Step 2: Decode the PBES2 parameters (KDF + encryption scheme).
@@ -143,7 +142,7 @@ func parsePKCS8EncryptedPrivateKey(block *pem.Block, password []byte) (interface
 		return nil, common.NewOracleError(oracleErrors.InternalError, err, "pem_decrypt: failed to parse PBES2 params")
 	}
 	if !pbes2.KDF.OID.Equal(oidPBKDF2) {
-		return nil, common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("pem_decrypt: unsupported KDF OID: %v", pbes2.KDF.OID))
+		return nil, common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "pem_decrypt: unsupported KDF OID", pbes2.KDF.OID)
 	}
 
 	// Step 3: Decode the PBKDF2 parameters (salt + iteration count).
@@ -195,19 +194,19 @@ func validatePBKDF2Params(kdf pbkdf2Params, expectedKeyLen int) error {
 		return errors.New("PBKDF2 salt is empty")
 	}
 	if len(kdf.Salt) > maxPBKDF2SaltLength {
-		return common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("PBKDF2 salt length %d exceeds maximum %d", len(kdf.Salt), maxPBKDF2SaltLength))
+		return common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "PBKDF2 salt length", len(kdf.Salt), maxPBKDF2SaltLength)
 	}
 	if kdf.Iterations <= 0 || kdf.Iterations > maxPBKDF2Iterations {
-		return common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("invalid PBKDF2 iteration count %d", kdf.Iterations))
+		return common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "invalid PBKDF2 iteration count", kdf.Iterations)
 	}
 	if expectedKeyLen <= 0 {
-		return common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("invalid PBKDF2 key length %d", expectedKeyLen))
+		return common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "invalid PBKDF2 key length", expectedKeyLen)
 	}
 	if kdf.KeyLength < 0 {
-		return common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("invalid PBKDF2 key length %d", kdf.KeyLength))
+		return common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "invalid PBKDF2 key length", kdf.KeyLength)
 	}
 	if kdf.KeyLength != 0 && kdf.KeyLength != expectedKeyLen {
-		return common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("PBKDF2 key length %d does not match cipher key length %d", kdf.KeyLength, expectedKeyLen))
+		return common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "PBKDF2 key length does not match cipher key length", kdf.KeyLength, expectedKeyLen)
 	}
 	return nil
 }
@@ -225,7 +224,7 @@ func hashForPBKDF2PRF(prf algorithmIdentifier) (func() hash.Hash, error) {
 	case prf.OID.Equal(oidHMACWithSHA512):
 		return sha512.New, nil
 	default:
-		return nil, common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("unsupported PBKDF2 PRF OID: %v", prf.OID))
+		return nil, common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "unsupported PBKDF2 PRF OID", prf.OID)
 	}
 }
 
@@ -242,7 +241,7 @@ func keyLengthForOID(oid asn1.ObjectIdentifier) (int, error) {
 	case oid.Equal(oidDESEDE3):
 		return 24, nil // 3DES needs a 24-byte key
 	default:
-		return 0, common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("unsupported encryption OID: %v", oid))
+		return 0, common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "unsupported encryption OID", oid)
 	}
 }
 
@@ -254,7 +253,7 @@ func decrypt(oid asn1.ObjectIdentifier, key, iv, ciphertext []byte) ([]byte, err
 	case oid.Equal(oidDESEDE3):
 		return decryptCBC(key, iv, ciphertext, des.NewTripleDESCipher, des.BlockSize)
 	default:
-		return nil, common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("unsupported encryption OID: %v", oid))
+		return nil, common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "unsupported encryption OID", oid)
 	}
 }
 
@@ -267,14 +266,14 @@ func decryptCBC(key, iv, ciphertext []byte, newCipher func([]byte) (cipher.Block
 		return nil, err
 	}
 	if len(iv) != blockSize {
-		return nil, common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("IV length %d does not match block size %d", len(iv), blockSize))
+		return nil, common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "IV length", len(iv), blockSize)
 	}
 	if len(ciphertext) == 0 {
 		return nil, errors.New("empty ciphertext")
 	}
 
 	if len(ciphertext)%blockSize != 0 {
-		return nil, common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("ciphertext length %d is not a multiple of block size %d", len(ciphertext), blockSize))
+		return nil, common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "ciphertext length", len(ciphertext), blockSize)
 	}
 
 	plaintext := make([]byte, len(ciphertext))
@@ -290,7 +289,7 @@ func stripPKCS7Padding(data []byte, blockSize int) ([]byte, error) {
 		return nil, errors.New("empty data after decryption")
 	}
 	if len(data)%blockSize != 0 {
-		return nil, common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("decrypted data length %d is not a multiple of block size %d", len(data), blockSize))
+		return nil, common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "decrypted data length", len(data), blockSize)
 	}
 
 	padLen := int(data[len(data)-1])

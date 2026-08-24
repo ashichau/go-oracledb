@@ -57,10 +57,16 @@ const (
 
 	// Naming / Data Source Name parsing errors (driver-facing)
 	// Raised by driver/network/naming package for Data Source Name / descriptor parsing and validation.
-	NamingDSNInvalid     ErrorCode = "OGD-00100"
-	NamingParseFailed    ErrorCode = "OGD-00101"
-	NamingEzConnectError ErrorCode = "OGD-00102"
-	NamingContextError   ErrorCode = "OGD-00103"
+	NamingDSNInvalid       ErrorCode = "OGD-00100"
+	NamingParseFailed      ErrorCode = "OGD-00101"
+	NamingEzConnectError   ErrorCode = "OGD-00102"
+	NamingContextError     ErrorCode = "OGD-00103"
+	NamingParsePosition    ErrorCode = "OGD-00104"
+	NamingParseValue       ErrorCode = "OGD-00105"
+	NamingParseValues      ErrorCode = "OGD-00106"
+	NamingParsePath        ErrorCode = "OGD-00107"
+	NamingParsePathSegment ErrorCode = "OGD-00108"
+	NamingParseBounds      ErrorCode = "OGD-00109"
 
 	// Message marshal Error
 
@@ -75,7 +81,14 @@ const (
 	LobExecError ErrorCode = "OGD-00014"
 	// UnsupportedCharacterSet surfaces when LOB operations encounter a character set that
 	// the Go driver does not yet support.
-	UnsupportedCharacterSet ErrorCode = "OGD-00015"
+	UnsupportedCharacterSet            ErrorCode = "OGD-00015"
+	InvalidNetworkValue                ErrorCode = "OGD-00016"
+	InvalidNetworkExpectedValue        ErrorCode = "OGD-00017"
+	InvalidNetworkContextValue         ErrorCode = "OGD-00018"
+	InvalidNetworkContextExpectedValue ErrorCode = "OGD-00019"
+	ConnectionRefusedDetail            ErrorCode = "OGD-00020"
+	NetworkRetryLimitExceeded          ErrorCode = "OGD-00026"
+	NetworkServerErrorCode             ErrorCode = "OGD-00027"
 
 	// Converter Errors
 	// Empty input Error

@@ -43,7 +43,6 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"strings"
 	"testing"
 )
 
@@ -452,15 +451,6 @@ func TestFlush(t *testing.T) {
 			t.Errorf("Offset changed without buffered data")
 		}
 	})
-}
-
-func TestSendInterrupt(t *testing.T) {
-	t.Parallel()
-	ns := newNetworkSession()
-	err := ns.SendInterrupt(context.Background())
-	if err == nil || !strings.Contains(err.Error(), "send interrupt is not implemented") {
-		t.Errorf("Expected send interrupt error, got %v", err)
-	}
 }
 
 func TestSendReset(t *testing.T) {

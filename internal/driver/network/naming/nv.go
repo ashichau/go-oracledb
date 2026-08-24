@@ -40,7 +40,6 @@ package naming
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/oracle/go-oracledb/v26/internal/common"
@@ -160,13 +159,13 @@ func parseIterative(tokens []string) (*Node, error) {
 		case "(":
 			// Start of new node - expect name token next
 			if i+1 >= len(tokens) {
-				return nil, common.NewOracleError(oracleErrors.NamingParseFailed, nil, fmt.Sprintf("expected name after '(' at position %d", i))
+				return nil, common.NewOracleError(oracleErrors.NamingParsePosition, nil, "expected name after '('", i)
 			}
 
 			// Create new node with parsed name/value
 			nameToken := tokens[i+1]
 			if nameToken == "(" || nameToken == ")" {
-				return nil, common.NewOracleError(oracleErrors.NamingParseFailed, nil, fmt.Sprintf("expected name after '(', got %q", nameToken))
+				return nil, common.NewOracleError(oracleErrors.NamingParseValue, nil, "expected name after '(', got", nameToken)
 			}
 			name, value := parseNameValue(nameToken)
 			node := &Node{Name: name, Value: value}
@@ -183,7 +182,7 @@ func parseIterative(tokens []string) (*Node, error) {
 		case ")":
 			// End of current node
 			if len(stack) == 0 {
-				return nil, common.NewOracleError(oracleErrors.NamingParseFailed, nil, fmt.Sprintf("unexpected ')' at position %d", i))
+				return nil, common.NewOracleError(oracleErrors.NamingParsePosition, nil, "unexpected ')'", i)
 			}
 
 			// Pop node from stack to currentNode and reduce stack by 1
@@ -198,7 +197,7 @@ func parseIterative(tokens []string) (*Node, error) {
 			i++
 
 		default:
-			return nil, common.NewOracleError(oracleErrors.NamingParseFailed, nil, fmt.Sprintf("invalid syntax: unexpected token %q", token))
+			return nil, common.NewOracleError(oracleErrors.NamingParseValue, nil, "invalid syntax: unexpected token", token)
 			/*
 				This code can handle cases in case there are comma separated values, that can be included as well
 					// Create child node with parsed name/value
@@ -214,7 +213,7 @@ func parseIterative(tokens []string) (*Node, error) {
 
 	// Validate parsing completed successfully
 	if len(stack) != 0 {
-		return nil, common.NewOracleError(oracleErrors.NamingParseFailed, nil, fmt.Sprintf("unmatched parentheses - %d unclosed nodes", len(stack)))
+		return nil, common.NewOracleError(oracleErrors.NamingParseBounds, nil, "unmatched parentheses - unclosed nodes", len(stack), 0)
 	}
 
 	if root == nil {
@@ -234,7 +233,7 @@ func (n *Node) GetValue(path string) (string, error) {
 
 	// Check if the found node actually has a value (is a leaf node)
 	if node.Value == "" {
-		return "", common.NewOracleError(oracleErrors.NamingParseFailed, nil, fmt.Sprintf("node at path %q has no value (not a leaf node)", path))
+		return "", common.NewOracleError(oracleErrors.NamingParsePath, nil, "node at path has no value (not a leaf node)", path)
 	}
 
 	return node.Value, nil
@@ -259,7 +258,7 @@ func (n *Node) GetNode(path string) (*Node, error) {
 
 	// First part must match the root node name
 	if parts[0] != n.Name {
-		return nil, common.NewOracleError(oracleErrors.NamingParseFailed, nil, fmt.Sprintf("path must start with root node name %q, but got %q", n.Name, parts[0]))
+		return nil, common.NewOracleError(oracleErrors.NamingParseValues, nil, "path must start with root node name", n.Name, parts[0])
 	}
 
 	// If path is just the root name, return root
@@ -273,7 +272,7 @@ func (n *Node) GetNode(path string) (*Node, error) {
 		part := parts[i]
 		if part == "" {
 			// Check for empty slashes
-			return nil, common.NewOracleError(oracleErrors.NamingParseFailed, nil, fmt.Sprintf("empty path segment at position %d in path %q", i, path))
+			return nil, common.NewOracleError(oracleErrors.NamingParsePathSegment, nil, "empty path segment", "", path, i)
 		}
 
 		found := false
@@ -286,7 +285,7 @@ func (n *Node) GetNode(path string) (*Node, error) {
 		}
 
 		if !found {
-			return nil, common.NewOracleError(oracleErrors.NamingParseFailed, nil, fmt.Sprintf("node %q not found in path %q (at segment %d)", part, path, i))
+			return nil, common.NewOracleError(oracleErrors.NamingParsePathSegment, nil, "node not found", part, path, i)
 		}
 	}
 
@@ -299,7 +298,7 @@ func (n *Node) ChildCount() int {
 
 func (n *Node) GetChild(index int) (*Node, error) {
 	if index < 0 || index >= len(n.Children) {
-		return nil, common.NewOracleError(oracleErrors.NamingParseFailed, nil, fmt.Sprintf("index %d out of bounds - node has %d children", index, len(n.Children)))
+		return nil, common.NewOracleError(oracleErrors.NamingParseBounds, nil, "index out of bounds", index, len(n.Children))
 	}
 	return &n.Children[index], nil
 }
@@ -403,7 +402,7 @@ func ParseDSNString(dsn string) (*ParsedConfig, error) {
 	// Parse the TNS string into a node tree
 	root, err := Parse(connectStr)
 	if err != nil {
-		return nil, common.NewOracleError(oracleErrors.NamingParseFailed, err)
+		return nil, common.NewOracleError(oracleErrors.NamingParseFailed, err, "parse error")
 	}
 
 	ctx, err := ExtractConnectionContext(root)
@@ -446,9 +445,9 @@ func (n *Node) stringWithIndent(indent int) string {
 	var result strings.Builder
 
 	if n.Value != "" {
-		result.WriteString(fmt.Sprintf("%s%s = %s\n", spaces, n.Name, n.Value))
+		result.WriteString(spaces + n.Name + " = " + n.Value + "\n")
 	} else {
-		result.WriteString(fmt.Sprintf("%s%s\n", spaces, n.Name))
+		result.WriteString(spaces + n.Name + "\n")
 		for i := range n.Children {
 			result.WriteString(n.Children[i].stringWithIndent(indent + 1))
 		}

@@ -41,8 +41,8 @@ package session
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
+	"strconv"
 
 	"github.com/oracle/go-oracledb/v26/internal/common"
 	oracleErrors "github.com/oracle/go-oracledb/v26/oracle/errors"
@@ -53,8 +53,11 @@ const (
 	NSPCNL        = 74
 )
 
-type packet interface {
+type packetUnmarshaller interface {
 	unmarshal(buffer []byte, sAtts *sessionAtts, hdr *header) error
+}
+
+type packetMarshaller interface {
 	marshal(buffer []byte, sAtts *sessionAtts, flags uint8) error
 }
 
@@ -184,10 +187,6 @@ func (cp *connectPacket) marshal(connectData []byte, sAtts *sessionAtts, flags u
 	return nil
 }
 
-func (cp *connectPacket) unmarshal(_ []byte, _ sessionAtts, _ *header) error {
-	return common.NewOracleError(oracleErrors.InternalError, nil, "connect packet unmarshal is not implemented")
-}
-
 // dataPacket represents an NSPTDA data packet
 type dataPacket struct {
 	hdr    *header
@@ -266,7 +265,7 @@ func (dp *dataPacket) Reset() {
 // Unmarshal constructs a data packet from received data
 func (dp *dataPacket) unmarshal(buffer []byte, _ *sessionAtts, hdr *header) error {
 	if int(hdr.packetLength) < NSPDADAT {
-		return common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("data packet too short: got %d, need >= %d", hdr.packetLength, NSPDADAT))
+		return common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "data packet too short", hdr.packetLength, NSPDADAT)
 	}
 	dp.hdr = hdr
 	dp.buf = buffer
@@ -294,7 +293,7 @@ func (ap *acceptPacket) unmarshal(buffer []byte, sAtts *sessionAtts, hdr *header
 	)
 
 	if len(buffer) < minAcceptBaseLen {
-		return common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("accept packet too short: got %d, need >= %d", len(buffer), minAcceptBaseLen))
+		return common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "accept packet too short", len(buffer), minAcceptBaseLen)
 	}
 	ap.hdr = hdr
 	ap.buf = buffer
@@ -308,7 +307,7 @@ func (ap *acceptPacket) unmarshal(buffer []byte, sAtts *sessionAtts, hdr *header
 
 	if sAtts.version >= 315 {
 		if len(buffer) < minAcceptLargeSDULen {
-			return common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("accept packet too short for large SDU/tdu: got %d, need >= %d", len(buffer), minAcceptLargeSDULen))
+			return common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "accept large SDU/TDU packet too short", len(buffer), minAcceptLargeSDULen)
 		}
 		sdu = int(binary.BigEndian.Uint32(buffer[NSPACLSD:]))
 		tdu = int(binary.BigEndian.Uint32(buffer[NSPACLTD:]))
@@ -318,7 +317,7 @@ func (ap *acceptPacket) unmarshal(buffer []byte, sAtts *sessionAtts, hdr *header
 		tdu = clamp(tdu, NSPMNTDULN, NSPMXTDULN)
 		sAtts.largeSDU = true
 		if len(buffer) < minAcceptCflagLen {
-			return common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("accept packet too short for compression flag: got %d, need >= %d", len(buffer), minAcceptCflagLen))
+			return common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "accept compression flag packet too short", len(buffer), minAcceptCflagLen)
 		}
 		ap.cflag = buffer[NSPACCFL]
 		if ap.cflag&NSPACCFON != 0 {
@@ -337,10 +336,6 @@ func (ap *acceptPacket) unmarshal(buffer []byte, sAtts *sessionAtts, hdr *header
 	return nil
 }
 
-func (ap *acceptPacket) marshal(_ []byte, _ *sessionAtts, _ uint8) error {
-	return common.NewOracleError(oracleErrors.InternalError, nil, "accept packet marshal is not implemented")
-}
-
 // refusePacket represents an NSPTRF refuse packet
 type refusePacket struct {
 	hdr          *header
@@ -357,7 +352,7 @@ type refusePacket struct {
 func (rp *refusePacket) unmarshal(buffer []byte, _ *sessionAtts, hdr *header) error {
 	const minRefuseLen = NSPRFDAT
 	if len(buffer) < minRefuseLen {
-		return common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("refuse packet too short: got %d, need >= %d", len(buffer), minRefuseLen))
+		return common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "refuse packet too short", len(buffer), minRefuseLen)
 	}
 	rp.hdr = hdr
 	rp.buf = buffer
@@ -374,10 +369,6 @@ func (rp *refusePacket) unmarshal(buffer []byte, _ *sessionAtts, hdr *header) er
 	return nil
 }
 
-func (ap *refusePacket) marshal(_ []byte, _ *sessionAtts, _ uint8) error {
-	return common.NewOracleError(oracleErrors.InternalError, nil, "refuse packet marshal is not implemented")
-}
-
 // redirectPacket represents an NSPTRD redirect packet
 type redirectPacket struct {
 	hdr      *header
@@ -392,7 +383,7 @@ type redirectPacket struct {
 func (rp *redirectPacket) unmarshal(buffer []byte, _ *sessionAtts, hdr *header) error {
 	const minRedirectLen = NSPRDDAT
 	if len(buffer) < minRedirectLen {
-		return common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("redirect packet too short: got %d, need >= %d", len(buffer), minRedirectLen))
+		return common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "redirect packet too short", len(buffer), minRedirectLen)
 	}
 	rp.hdr = hdr
 	rp.buf = buffer
@@ -405,10 +396,6 @@ func (rp *redirectPacket) unmarshal(buffer []byte, _ *sessionAtts, hdr *header) 
 		rp.overflow = true
 	}
 	return nil
-}
-
-func (ap *redirectPacket) marshal(_ []byte, _ *sessionAtts, _ uint8) error {
-	return common.NewOracleError(oracleErrors.InternalError, nil, "redirect packet marshal is not implemented")
 }
 
 // markerPacket represents an NSPTMK marker packet
@@ -443,7 +430,7 @@ func (mp *markerPacket) marshal(_ []byte, sAtts *sessionAtts, data uint8) error 
 func (mp *markerPacket) unmarshal(buffer []byte, _ *sessionAtts, hdr *header) error {
 	const minMarkerLen = NSPMKDAT + 1
 	if len(buffer) < minMarkerLen {
-		return common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("marker packet too short: got %d, need >= %d", len(buffer), minMarkerLen))
+		return common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "marker packet too short", len(buffer), minMarkerLen)
 	}
 	mp.hdr = hdr
 	mp.buf = buffer
@@ -463,11 +450,6 @@ type controlPacket struct {
 	isNotification bool
 }
 
-// Marshal creates a new controlPacket
-func (ap *controlPacket) marshal(_ []byte, _ *sessionAtts, _ uint8) error {
-	return common.NewOracleError(oracleErrors.InternalError, nil, "control packet marshal is not implemented")
-}
-
 // Clear resets the control packet
 func (cp *controlPacket) Clear() {
 	cp.errno = 0
@@ -485,7 +467,7 @@ func (cp *controlPacket) unmarshal(buffer []byte, _ *sessionAtts, hdr *header) e
 		ORA_ERROR_EMFI_NUMBER = 22
 	)
 	if len(buffer) < NSPCTLCMD+2 {
-		return common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("control packet too short: got %d, need >= %d", len(buffer), NSPCTLCMD+2))
+		return common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "control packet too short", len(buffer), NSPCTLCMD+2)
 	}
 	cp.hdr = hdr
 	cp.cmd = binary.BigEndian.Uint16(buffer[NSPCTLCMD:])
@@ -513,9 +495,9 @@ func (cp *controlPacket) unmarshal(buffer []byte, _ *sessionAtts, hdr *header) e
 			cp.errno = err1
 			cp.isNotification = false
 			if emfi == ORA_ERROR_EMFI_NUMBER {
-				return errors.Join(ErrConnectionInband, common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("ORA-%d", err1)))
+				return errors.Join(ErrConnectionInband, common.NewOracleError(oracleErrors.NetworkServerErrorCode, nil, "ORA", strconv.FormatInt(int64(err1), 10)))
 			} else {
-				return errors.Join(ErrConnectionInband, common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("TNS-%d", err1)))
+				return errors.Join(ErrConnectionInband, common.NewOracleError(oracleErrors.NetworkServerErrorCode, nil, "TNS", strconv.FormatInt(int64(err1), 10)))
 			}
 		}
 	default:
@@ -528,11 +510,6 @@ func (cp *controlPacket) unmarshal(buffer []byte, _ *sessionAtts, hdr *header) e
 type resendPacket struct {
 	hdr *header
 	buf []byte
-}
-
-// Marshal prepares the resend packet for sending
-func (rp *resendPacket) marshal(_ []byte, _ *sessionAtts, _ uint8) error {
-	return nil
 }
 
 // Unmarshal constructs a resend packet from received data

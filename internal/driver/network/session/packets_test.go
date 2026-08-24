@@ -158,14 +158,6 @@ func TestConnectPacketMarshal(t *testing.T) {
 
 }
 
-func TestConnectPacketUnmarshal(t *testing.T) {
-	t.Parallel()
-	cp := &connectPacket{}
-	err := cp.unmarshal([]byte{}, sessionAtts{}, &header{})
-	if err == nil || !strings.Contains(err.Error(), "connect packet unmarshal is not implemented") {
-		t.Errorf("Expected connect packet unmarshal error, got %v", err)
-	}
-}
 func TestDataPacketMarshal(t *testing.T) {
 	t.Parallel()
 	sAtts := &sessionAtts{largeSDU: false}
@@ -370,12 +362,6 @@ func TestAcceptPacketUnmarshal(t *testing.T) {
 		t.Errorf("Unmarshal below min data flags failed: %v", err)
 	}
 
-	// Test Marshal not implemented
-	err = ap.marshal(buf, sAtts, 0)
-	if err == nil {
-		t.Errorf("Expected not implemented error for Marshal")
-	}
-
 	// Short buffer should error
 	err = ap.unmarshal(buf[:NSPACFL1], sAtts, hdr)
 	if err == nil {
@@ -464,11 +450,6 @@ func TestRefusePacketUnmarshal(t *testing.T) {
 		t.Errorf("Expected error for short refuse packet")
 	}
 
-	// Test Marshal not implemented
-	err = rp.marshal(buf, nil, 0)
-	if err == nil {
-		t.Errorf("Expected not implemented error for Marshal")
-	}
 }
 
 func TestRedirectPacketUnmarshal(t *testing.T) {
@@ -503,11 +484,6 @@ func TestRedirectPacketUnmarshal(t *testing.T) {
 		t.Errorf("Expected error for short redirect packet")
 	}
 
-	// Test Marshal not implemented
-	err = rp.marshal(buf, nil, 0)
-	if err == nil {
-		t.Errorf("Expected not implemented error for Marshal")
-	}
 }
 
 func TestMarkerPacket(t *testing.T) {
@@ -640,12 +616,6 @@ func TestControlPacketUnmarshal(t *testing.T) {
 		t.Errorf("Expected error for invalid cmd")
 	}
 
-	// Test Marshal not implemented
-	err = cp.marshal(buf, nil, 0)
-	if err == nil {
-		t.Errorf("Expected not implemented error for Marshal")
-	}
-
 	// Reset cmd for invalid EMFI test
 	binary.BigEndian.PutUint16(buf[NSPCTLCMD:], NSPCTL_SERR)
 
@@ -675,11 +645,6 @@ func TestResendPacketUnmarshal(t *testing.T) {
 		t.Errorf("Expected error for short buffer")
 	}
 
-	// Test Marshal
-	err = rp.marshal(buf, nil, 0)
-	if err != nil {
-		t.Errorf("Marshal failed: %v", err)
-	}
 }
 
 func TestContains(t *testing.T) {

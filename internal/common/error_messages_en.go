@@ -198,6 +198,12 @@ func initMessagesEn() {
 	// Action:   Fix the connect descriptor syntax.
 	// Comment:  N/A
 	message.SetString(language.English, string(oracleErrors.NamingParseFailed), "invalid connection string: %s")
+	message.SetString(language.English, string(oracleErrors.NamingParsePosition), "invalid connection string: %s at position %d")
+	message.SetString(language.English, string(oracleErrors.NamingParseValue), "invalid connection string: %s %q")
+	message.SetString(language.English, string(oracleErrors.NamingParseValues), "invalid connection string: %s %q, got %q")
+	message.SetString(language.English, string(oracleErrors.NamingParsePath), "invalid connection string: %s %q")
+	message.SetString(language.English, string(oracleErrors.NamingParsePathSegment), "invalid connection string: %s %q in path %q at segment %d")
+	message.SetString(language.English, string(oracleErrors.NamingParseBounds), "invalid connection string: %s %d, expected %d")
 
 	// Document: Yes
 	// Cause:    The connection string has an invalid value for a field.
@@ -240,6 +246,13 @@ func initMessagesEn() {
 	// Action:   Reconnect using AL32UTF8 or AL16UTF16 character sets.
 	// Comment:  Arg[0]: unsupported character set identifier.
 	message.SetString(language.English, string(oracleErrors.UnsupportedCharacterSet), "Unsupported character set: %d")
+	message.SetString(language.English, string(oracleErrors.InvalidNetworkValue), "%s: %v")
+	message.SetString(language.English, string(oracleErrors.InvalidNetworkExpectedValue), "%s: got %v, expected %v")
+	message.SetString(language.English, string(oracleErrors.InvalidNetworkContextValue), "%s (%s): %v")
+	message.SetString(language.English, string(oracleErrors.InvalidNetworkContextExpectedValue), "%s (%s): got %v, expected %v")
+	message.SetString(language.English, string(oracleErrors.ConnectionRefusedDetail), "connection refused: ORA-%s, user reason %d, system reason %d")
+	message.SetString(language.English, string(oracleErrors.NetworkServerErrorCode), "%s-%s")
+	message.SetString(language.English, string(oracleErrors.NetworkRetryLimitExceeded), "too many %s: exceeded maximum of %d")
 
 	message.SetString(language.English, string(oracleErrors.ConnectTimeout), "%s Timeout of %d for %s.(CONNECTION_ID=%s)")
 
