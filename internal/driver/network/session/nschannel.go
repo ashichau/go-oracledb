@@ -45,6 +45,7 @@ import (
 	"io"
 
 	"github.com/oracle/go-oracledb/v26/internal/common"
+	oracleErrors "github.com/oracle/go-oracledb/v26/oracle/errors"
 )
 
 // NSChannel interface defines methods for network communication
@@ -74,7 +75,7 @@ func (ns *networkSession) PrepareReadBuffer(ctx context.Context) error {
 func (ns *networkSession) fillReadBuffer(ctx context.Context) error {
 	_, err := ns.recvPacket(ctx)
 	if ns.isBreak {
-		return fmt.Errorf("break-packet received")
+		return common.NewOracleError(oracleErrors.InternalError, nil, "break packet received")
 	}
 	if err != nil {
 		return err
@@ -89,7 +90,7 @@ func (ns *networkSession) ReadByteWithContext(ctx context.Context) (byte, error)
 
 func (ns *networkSession) ReadBytesWithContext(ctx context.Context, length int32) (*[]byte, error) {
 	if length < 0 {
-		return nil, fmt.Errorf("invalid byte length: %d", length)
+		return nil, common.NewOracleError(oracleErrors.InternalError, nil, fmt.Sprintf("invalid byte length: %d", length))
 	}
 	return ns.readNBytes(ctx, int(length))
 }
@@ -177,10 +178,10 @@ func (ns *networkSession) readMultiPacket(ctx context.Context, buf []byte, numBy
 		if remaining == 0 {
 			_, err := ns.recvPacket(ctx)
 			if ns.isBreak {
-				return fmt.Errorf("break-packet received")
+				return common.NewOracleError(oracleErrors.InternalError, nil, "break packet received")
 			}
 			if err != nil {
-				return fmt.Errorf("failed to receive next packet: %w", err)
+				return common.NewOracleError(oracleErrors.InternalError, err, "failed to receive next packet")
 			}
 			continue
 		}
@@ -191,7 +192,7 @@ func (ns *networkSession) readMultiPacket(ctx context.Context, buf []byte, numBy
 		}
 		data, err := ns.rcvDatapkt.Read(bytesToRead)
 		if err != nil {
-			return fmt.Errorf("failed to read from current packet: %w", err)
+			return common.NewOracleError(oracleErrors.InternalError, err, "failed to read from current packet")
 		}
 
 		copy(buf[bytesRead:], data)
@@ -401,7 +402,7 @@ func (ns *networkSession) CancelOperation(ctx context.Context) error {
 
 func (ns *networkSession) SendInterrupt(ctx context.Context) error {
 	// Placeholder: Implement interrupt logic if needed
-	return fmt.Errorf("SendInterrupt not implemented")
+	return common.NewOracleError(oracleErrors.InternalError, nil, "send interrupt is not implemented")
 }
 
 func (ns *networkSession) SendReset(ctx context.Context) error {
@@ -422,7 +423,7 @@ func (ns *networkSession) Flush(ctx context.Context) error {
 	err = ns.SendPacket(ctx, ns.sndDatapkt.buf[:ns.sndDatapkt.offset])
 	if err != nil {
 		if err == io.EOF {
-			return fmt.Errorf("connection closed during flush")
+			return common.NewOracleError(oracleErrors.InternalError, err, "connection closed during flush")
 		}
 		return err
 	}

@@ -1171,7 +1171,7 @@ func TestProcessPacket(t *testing.T) {
 	// Test unsupported type
 	hdr.typ = 99
 	_, err = ns.processPacket(buf, hdr)
-	if err == nil || err.Error() != "unsupported packet type: 99" {
+	if err == nil || !strings.Contains(err.Error(), "unsupported packet type: 99") {
 		t.Errorf("Expected unsupported type error")
 	}
 

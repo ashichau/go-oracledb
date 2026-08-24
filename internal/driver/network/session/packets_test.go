@@ -161,8 +161,8 @@ func TestConnectPacketUnmarshal(t *testing.T) {
 	t.Parallel()
 	cp := &connectPacket{}
 	err := cp.unmarshal([]byte{}, sessionAtts{}, &header{})
-	if err == nil || err.Error() != "not implemented" {
-		t.Errorf("Expected 'not implemented' error, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "connect packet unmarshal is not implemented") {
+		t.Errorf("Expected connect packet unmarshal error, got %v", err)
 	}
 }
 func TestDataPacketMarshal(t *testing.T) {

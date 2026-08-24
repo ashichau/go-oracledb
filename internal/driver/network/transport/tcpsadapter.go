@@ -49,6 +49,9 @@ import (
 	"net"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/oracle/go-oracledb/v26/internal/common"
+	oracleErrors "github.com/oracle/go-oracledb/v26/oracle/errors"
 )
 
 // nttcps represents a TCPS network transport adapter
@@ -110,7 +113,7 @@ func (nt *nttcps) Connect(ctx context.Context, address Address) error {
 		rootCAs := nt.rootCAs
 		if rootCAs == nil {
 			if !nt.atts.UseSystemTrust {
-				return fmt.Errorf("no trusted CA certificates configured")
+				return common.NewOracleError(oracleErrors.InternalError, nil, "no trusted CA certificates configured")
 			}
 
 			var err error
@@ -131,12 +134,12 @@ func (nt *nttcps) Connect(ctx context.Context, address Address) error {
 		}
 
 		if _, err := certs[0].Verify(opts); err != nil {
-			return fmt.Errorf("unauthorized server certificate: %w", err)
+			return common.NewOracleError(oracleErrors.InternalError, err, "unauthorized server certificate")
 		}
 
 		if nt.atts.SSLServerDNMatch && nt.doDNMatch {
 			if err := nt.verifyServerDN(certs[0]); err != nil {
-				return fmt.Errorf("DN match failed: %w", err)
+				return common.NewOracleError(oracleErrors.InternalError, err, "DN match failed")
 			}
 		}
 
@@ -160,7 +163,7 @@ func (nt *nttcps) VerifyPostAcceptDNMatch() error {
 	}
 	tlsConn, ok := nt.stream.(*tls.Conn)
 	if !ok {
-		return fmt.Errorf("TCPS stream is not TLS")
+		return common.NewOracleError(oracleErrors.InternalError, nil, "TCPS stream is not TLS")
 	}
 	//ensure TLS handshake is complete.
 	if err := tlsConn.Handshake(); err != nil {
@@ -168,12 +171,12 @@ func (nt *nttcps) VerifyPostAcceptDNMatch() error {
 	}
 	state := tlsConn.ConnectionState()
 	if len(state.PeerCertificates) == 0 {
-		return fmt.Errorf("missing server certificate")
+		return common.NewOracleError(oracleErrors.InternalError, nil, "missing server certificate")
 	}
 
 	cert := state.PeerCertificates[0]
 	if err := nt.verifyServerDN(cert); err != nil {
-		return fmt.Errorf("post-accept DN match failed: %w", err)
+		return common.NewOracleError(oracleErrors.InternalError, err, "post-accept DN match failed")
 	}
 	return nil
 }

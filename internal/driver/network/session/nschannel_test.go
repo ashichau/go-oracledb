@@ -43,6 +43,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -457,8 +458,8 @@ func TestSendInterrupt(t *testing.T) {
 	t.Parallel()
 	ns := newNetworkSession()
 	err := ns.SendInterrupt(context.Background())
-	if err == nil || err.Error() != "SendInterrupt not implemented" {
-		t.Errorf("Expected 'SendInterrupt not implemented', got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "send interrupt is not implemented") {
+		t.Errorf("Expected send interrupt error, got %v", err)
 	}
 }
 

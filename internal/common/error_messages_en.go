@@ -197,7 +197,7 @@ func initMessagesEn() {
 	// Cause:    Connection string syntax is invalid.
 	// Action:   Fix the connect descriptor syntax.
 	// Comment:  N/A
-	message.SetString(language.English, string(oracleErrors.NamingParseFailed), "invalid connection string")
+	message.SetString(language.English, string(oracleErrors.NamingParseFailed), "invalid connection string: %s")
 
 	// Document: Yes
 	// Cause:    The connection string has an invalid value for a field.
@@ -393,7 +393,7 @@ func initMessagesEn() {
 	message.SetString(language.English, string(oracleErrors.CancelOperationError), "cancel operation failed")
 
 	// Document: No
-	message.SetString(language.English, string(oracleErrors.InternalError), "internal error occurred.")
+	message.SetString(language.English, string(oracleErrors.InternalError), "internal error: %s")
 	// Document: No
 	// Cause:    The shelf was used before a localization service was registered.
 	// Action:   Ensure the connection instantiator registers a localization service before returning the shelf.
