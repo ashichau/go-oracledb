@@ -41,6 +41,7 @@ package session
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -596,7 +597,7 @@ func TestControlPacketUnmarshal(t *testing.T) {
 	binary.BigEndian.PutUint32(buf[NSPCTLDAT:], 22)
 	binary.BigEndian.PutUint32(buf[NSPCTLDAT+4:], 12345)
 	err = cp.unmarshal(buf, nil, hdr)
-	if err == nil || err.Error() != "inband connection error: ORA-12345" {
+	if err == nil || !errors.Is(err, ErrConnectionInband) || !strings.Contains(err.Error(), "ORA-12345") {
 		t.Errorf("Unexpected error for ORA error: %v", err)
 	}
 
@@ -604,7 +605,7 @@ func TestControlPacketUnmarshal(t *testing.T) {
 	binary.BigEndian.PutUint32(buf[NSPCTLDAT:], 0)
 	binary.BigEndian.PutUint32(buf[NSPCTLDAT+4:], 12345)
 	err = cp.unmarshal(buf, nil, hdr)
-	if err == nil || err.Error() != "inband connection error: TNS-12345" {
+	if err == nil || !errors.Is(err, ErrConnectionInband) || !strings.Contains(err.Error(), "TNS-12345") {
 		t.Errorf("Unexpected error for TNS error: %v", err)
 	}
 
@@ -652,7 +653,7 @@ func TestControlPacketUnmarshal(t *testing.T) {
 	binary.BigEndian.PutUint32(buf[NSPCTLDAT:], 999)
 	binary.BigEndian.PutUint32(buf[NSPCTLDAT+4:], 12345)
 	err = cp.unmarshal(buf, nil, hdr)
-	if err == nil || err.Error() != "inband connection error: TNS-12345" {
+	if err == nil || !errors.Is(err, ErrConnectionInband) || !strings.Contains(err.Error(), "TNS-12345") {
 		t.Errorf("Expected inband connection error, got %v", err)
 	}
 }
