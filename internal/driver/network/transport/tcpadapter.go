@@ -151,7 +151,7 @@ func (nt *nttcp) Send(ctx context.Context, buf []byte) error {
 func (nt *nttcp) Receive(ctx context.Context, buf []byte, bytes2Read int) (int, error) {
 
 	if bytes2Read > len(buf) {
-		return 0, common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "buffer too small", len(buf), bytes2Read)
+		return 0, common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "buffer length", len(buf), bytes2Read)
 	}
 
 	var ctxToBeUsed context.Context
@@ -217,7 +217,7 @@ func (nt *nttcp) nTConnect(ctx context.Context, address Address) error {
 	}
 
 	if httpsProxy != "" {
-		return common.NewOracleError(oracleErrors.InternalError, nil, "HTTPS proxy support is not implemented")
+		return common.NewOracleError(oracleErrors.UnsupportedFeature, nil, "HTTPS proxy")
 	}
 
 	var dialer net.Dialer

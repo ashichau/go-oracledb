@@ -373,7 +373,7 @@ func TestParsePKCS8EncryptedPrivateKey_RejectsUnsafePBKDF2Params(t *testing.T) {
 			edit: func(kdf *pbkdf2Params) {
 				kdf.Iterations = maxPBKDF2Iterations + 1
 			},
-			want: "invalid PBKDF2 iteration count",
+			want: "PBKDF2 iteration count",
 		},
 		{
 			name: "salt too large",
@@ -387,14 +387,14 @@ func TestParsePKCS8EncryptedPrivateKey_RejectsUnsafePBKDF2Params(t *testing.T) {
 			edit: func(kdf *pbkdf2Params) {
 				kdf.KeyLength = 64
 			},
-			want: "does not match cipher key length",
+			want: "PBKDF2 key length",
 		},
 		{
 			name: "explicit key length negative",
 			edit: func(kdf *pbkdf2Params) {
 				kdf.KeyLength = -1
 			},
-			want: "invalid PBKDF2 key length",
+			want: "PBKDF2 key length",
 		},
 	}
 

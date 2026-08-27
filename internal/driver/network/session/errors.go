@@ -46,7 +46,6 @@ var (
 	ErrBufferOverflow        = errors.New("receive buffer exceeds maximum size")
 	ErrProxyNotImplemented   = errors.New("HTTPS proxy support is not implemented")
 	ErrPacketTooShort        = errors.New("packet too short")
-	ErrInvalidPacket         = errors.New("invalid packet")          // Added
 	ErrConnectionInband      = errors.New("inband connection error") // Added
 	ErrUnsupportedPacketType = errors.New("unsupported packet type")
 	ErrConnectionClosed      = errors.New("connection closed")

@@ -139,13 +139,13 @@ func TestParseSimpleWithConnectionProperties(t *testing.T) {
 func TestParseEmpty(t *testing.T) {
 	t.Parallel()
 	_, err := Parse("")
-	assertErrorCode(t, err, oracleErrors.NamingParseFailed)
+	assertErrorCode(t, err, oracleErrors.NamingInputMissing)
 }
 
 func TestParseWhitespaceOnly(t *testing.T) {
 	t.Parallel()
 	_, err := Parse(" \t\n\r ")
-	assertErrorCode(t, err, oracleErrors.NamingParseFailed)
+	assertErrorCode(t, err, oracleErrors.NamingInputMissing)
 }
 
 func TestParseInvalid(t *testing.T) {
@@ -283,7 +283,7 @@ func TestParseUnexpectedClosingParen(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error for unexpected ')'")
 	}
-	assertErrorCode(t, err, oracleErrors.NamingParsePosition)
+	assertErrorCode(t, err, oracleErrors.NamingUnexpectedClosingParenthesis)
 }
 
 func TestParseUnexpectedToken(t *testing.T) {
@@ -320,7 +320,7 @@ func TestGetNodeEmptyPath(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error for empty path")
 	}
-	assertErrorCode(t, err, oracleErrors.NamingParseFailed)
+	assertErrorCode(t, err, oracleErrors.NamingInputMissing)
 }
 
 func TestGetNodeWrongRootName(t *testing.T) {
@@ -563,5 +563,5 @@ func TestParseDSNString_CommaBetweenNodes_FailsFast(t *testing.T) {
 func TestParseIterative_NoTokens(t *testing.T) {
 	t.Parallel()
 	_, err := parseIterative([]string{})
-	assertErrorCode(t, err, oracleErrors.NamingParseFailed)
+	assertErrorCode(t, err, oracleErrors.NamingTokensMissing)
 }

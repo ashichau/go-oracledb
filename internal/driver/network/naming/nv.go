@@ -57,13 +57,13 @@ type Node struct {
 func Parse(connectString string) (*Node, error) {
 	connectString = strings.TrimSpace(connectString)
 	if connectString == "" {
-		return nil, common.NewOracleError(oracleErrors.NamingParseFailed, nil, "empty connection string")
+		return nil, common.NewOracleError(oracleErrors.NamingInputMissing, nil, "connection string")
 	}
 
 	tokens := tokenize(connectString)
 
 	if len(tokens) == 0 {
-		return nil, common.NewOracleError(oracleErrors.NamingParseFailed, nil, "no valid tokens found")
+		return nil, common.NewOracleError(oracleErrors.NamingTokensMissing, nil)
 	}
 
 	return parseIterative(tokens)
@@ -128,7 +128,7 @@ func tokenize(input string) []string {
 // parseIterative uses stack-based parsing to build the node tree
 func parseIterative(tokens []string) (*Node, error) {
 	if len(tokens) == 0 {
-		return nil, common.NewOracleError(oracleErrors.NamingParseFailed, nil, "no tokens to parse")
+		return nil, common.NewOracleError(oracleErrors.NamingTokensMissing, nil)
 	}
 
 	// Stack to track nodes being built, root node reference
@@ -159,13 +159,13 @@ func parseIterative(tokens []string) (*Node, error) {
 		case "(":
 			// Start of new node - expect name token next
 			if i+1 >= len(tokens) {
-				return nil, common.NewOracleError(oracleErrors.NamingParsePosition, nil, "expected name after '('", i)
+				return nil, common.NewOracleError(oracleErrors.NamingParsePosition, nil, i)
 			}
 
 			// Create new node with parsed name/value
 			nameToken := tokens[i+1]
 			if nameToken == "(" || nameToken == ")" {
-				return nil, common.NewOracleError(oracleErrors.NamingParseValue, nil, "expected name after '(', got", nameToken)
+				return nil, common.NewOracleError(oracleErrors.NamingParseValue, nil, nameToken)
 			}
 			name, value := parseNameValue(nameToken)
 			node := &Node{Name: name, Value: value}
@@ -182,7 +182,7 @@ func parseIterative(tokens []string) (*Node, error) {
 		case ")":
 			// End of current node
 			if len(stack) == 0 {
-				return nil, common.NewOracleError(oracleErrors.NamingParsePosition, nil, "unexpected ')'", i)
+				return nil, common.NewOracleError(oracleErrors.NamingUnexpectedClosingParenthesis, nil, i)
 			}
 
 			// Pop node from stack to currentNode and reduce stack by 1
@@ -197,7 +197,7 @@ func parseIterative(tokens []string) (*Node, error) {
 			i++
 
 		default:
-			return nil, common.NewOracleError(oracleErrors.NamingParseValue, nil, "invalid syntax: unexpected token", token)
+			return nil, common.NewOracleError(oracleErrors.NamingParseValue, nil, token)
 			/*
 				This code can handle cases in case there are comma separated values, that can be included as well
 					// Create child node with parsed name/value
@@ -213,11 +213,11 @@ func parseIterative(tokens []string) (*Node, error) {
 
 	// Validate parsing completed successfully
 	if len(stack) != 0 {
-		return nil, common.NewOracleError(oracleErrors.NamingParseBounds, nil, "unmatched parentheses - unclosed nodes", len(stack), 0)
+		return nil, common.NewOracleError(oracleErrors.NamingParseBounds, nil, len(stack), 0)
 	}
 
 	if root == nil {
-		return nil, common.NewOracleError(oracleErrors.NamingParseFailed, nil, "no root node found")
+		return nil, common.NewOracleError(oracleErrors.NamingParseFailed, nil)
 	}
 
 	return root, nil
@@ -233,7 +233,7 @@ func (n *Node) GetValue(path string) (string, error) {
 
 	// Check if the found node actually has a value (is a leaf node)
 	if node.Value == "" {
-		return "", common.NewOracleError(oracleErrors.NamingParsePath, nil, "node at path has no value (not a leaf node)", path)
+		return "", common.NewOracleError(oracleErrors.NamingParsePath, nil, path)
 	}
 
 	return node.Value, nil
@@ -243,12 +243,12 @@ func (n *Node) GetValue(path string) (string, error) {
 // Path is case-insensitive for node names. Returns node and error.
 func (n *Node) GetNode(path string) (*Node, error) {
 	if path == "" {
-		return nil, common.NewOracleError(oracleErrors.NamingParseFailed, nil, "empty path provided")
+		return nil, common.NewOracleError(oracleErrors.NamingInputMissing, nil, "path")
 	}
 
 	parts := strings.Split(path, "/")
 	if len(parts) == 0 {
-		return nil, common.NewOracleError(oracleErrors.NamingParseFailed, nil, "invalid path format")
+		return nil, common.NewOracleError(oracleErrors.NamingParsePath, nil, path)
 	}
 
 	// Normalize path parts to uppercase for case-insensitive comparison
@@ -258,7 +258,7 @@ func (n *Node) GetNode(path string) (*Node, error) {
 
 	// First part must match the root node name
 	if parts[0] != n.Name {
-		return nil, common.NewOracleError(oracleErrors.NamingParseValues, nil, "path must start with root node name", n.Name, parts[0])
+		return nil, common.NewOracleError(oracleErrors.NamingParseValues, nil, parts[0], n.Name)
 	}
 
 	// If path is just the root name, return root
@@ -272,7 +272,7 @@ func (n *Node) GetNode(path string) (*Node, error) {
 		part := parts[i]
 		if part == "" {
 			// Check for empty slashes
-			return nil, common.NewOracleError(oracleErrors.NamingParsePathSegment, nil, "empty path segment", "", path, i)
+			return nil, common.NewOracleError(oracleErrors.NamingParsePathSegment, nil, "", path, i)
 		}
 
 		found := false
@@ -285,7 +285,7 @@ func (n *Node) GetNode(path string) (*Node, error) {
 		}
 
 		if !found {
-			return nil, common.NewOracleError(oracleErrors.NamingParsePathSegment, nil, "node not found", part, path, i)
+			return nil, common.NewOracleError(oracleErrors.NamingParsePathSegment, nil, part, path, i)
 		}
 	}
 
@@ -298,7 +298,7 @@ func (n *Node) ChildCount() int {
 
 func (n *Node) GetChild(index int) (*Node, error) {
 	if index < 0 || index >= len(n.Children) {
-		return nil, common.NewOracleError(oracleErrors.NamingParseBounds, nil, "index out of bounds", index, len(n.Children))
+		return nil, common.NewOracleError(oracleErrors.NamingParseBounds, nil, index, len(n.Children))
 	}
 	return &n.Children[index], nil
 }
@@ -402,7 +402,7 @@ func ParseDSNString(dsn string) (*ParsedConfig, error) {
 	// Parse the TNS string into a node tree
 	root, err := Parse(connectStr)
 	if err != nil {
-		return nil, common.NewOracleError(oracleErrors.NamingParseFailed, err, "parse error")
+		return nil, common.NewOracleError(oracleErrors.NamingParseFailed, err)
 	}
 
 	ctx, err := ExtractConnectionContext(root)

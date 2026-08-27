@@ -112,7 +112,7 @@ func (nt *nttcps) Connect(ctx context.Context, address Address) error {
 		rootCAs := nt.rootCAs
 		if rootCAs == nil {
 			if !nt.atts.UseSystemTrust {
-				return common.NewOracleError(oracleErrors.InternalError, nil, "no trusted CA certificates configured")
+				return common.NewOracleError(oracleErrors.InvalidNetworkProperty, nil, "TLS trust store")
 			}
 
 			var err error
@@ -133,12 +133,12 @@ func (nt *nttcps) Connect(ctx context.Context, address Address) error {
 		}
 
 		if _, err := certs[0].Verify(opts); err != nil {
-			return common.NewOracleError(oracleErrors.InternalError, err, "unauthorized server certificate")
+			return common.NewOracleError(oracleErrors.TLSCertificateVerificationFailed, err)
 		}
 
 		if nt.atts.SSLServerDNMatch && nt.doDNMatch {
 			if err := nt.verifyServerDN(certs[0]); err != nil {
-				return common.NewOracleError(oracleErrors.InternalError, err, "DN match failed")
+				return common.NewOracleError(oracleErrors.TLSCertificateDNMatchFailed, err)
 			}
 		}
 
@@ -162,7 +162,7 @@ func (nt *nttcps) VerifyPostAcceptDNMatch() error {
 	}
 	tlsConn, ok := nt.stream.(*tls.Conn)
 	if !ok {
-		return common.NewOracleError(oracleErrors.InternalError, nil, "TCPS stream is not TLS")
+		return common.NewOracleError(oracleErrors.InternalError, nil, "TCPS stream")
 	}
 	//ensure TLS handshake is complete.
 	if err := tlsConn.Handshake(); err != nil {
@@ -170,12 +170,12 @@ func (nt *nttcps) VerifyPostAcceptDNMatch() error {
 	}
 	state := tlsConn.ConnectionState()
 	if len(state.PeerCertificates) == 0 {
-		return common.NewOracleError(oracleErrors.InternalError, nil, "missing server certificate")
+		return common.NewOracleError(oracleErrors.InvalidNetworkProperty, nil, "server certificate")
 	}
 
 	cert := state.PeerCertificates[0]
 	if err := nt.verifyServerDN(cert); err != nil {
-		return common.NewOracleError(oracleErrors.InternalError, err, "post-accept DN match failed")
+		return common.NewOracleError(oracleErrors.TLSCertificateDNMatchFailed, err)
 	}
 	return nil
 }
@@ -247,7 +247,7 @@ func (nt *nttcps) processWallet() error {
 		if x509.IsEncryptedPEMBlock(block) { //nolint
 			decryptedBytes, err = x509.DecryptPEMBlock(block, []byte(password)) //nolint
 			if err != nil {
-				return common.NewOracleError(oracleErrors.InternalError, err, "decrypt PEM block")
+				return common.NewOracleError(oracleErrors.PEMBlockDecryptFailed, err)
 			}
 		} else {
 			decryptedBytes = block.Bytes
@@ -267,17 +267,17 @@ func (nt *nttcps) processWallet() error {
 			})
 		case "ENCRYPTED PRIVATE KEY":
 			if password == "" {
-				return common.NewOracleError(oracleErrors.InternalError, nil, "missing wallet password for encrypted private key; set oracle.go.wallet_password")
+				return common.NewOracleError(oracleErrors.InvalidNetworkProperty, nil, "wallet password")
 			}
 			// Pass the *pem.Block directly
 			privateKey, err := parsePKCS8EncryptedPrivateKey(block, []byte(password))
 			if err != nil {
-				return common.NewOracleError(oracleErrors.InternalError, err, "decrypt encrypted private key")
+				return err
 			}
 
 			privateKeyBytes, marshalErr := x509.MarshalPKCS8PrivateKey(privateKey)
 			if marshalErr != nil {
-				return common.NewOracleError(oracleErrors.InternalError, marshalErr, "marshal encrypted private key")
+				return common.NewOracleError(oracleErrors.InvalidNetworkProperty, marshalErr, "decrypted private key")
 			}
 
 			keyPEM = pem.EncodeToMemory(&pem.Block{
@@ -285,20 +285,20 @@ func (nt *nttcps) processWallet() error {
 				Bytes: privateKeyBytes,
 			})
 		default:
-			return common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "unknown PEM block type", block.Type)
+			return common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "PEM block type", block.Type)
 		}
 	}
 
 	walletProvided := walletContent != nil
 	if walletProvided && rootCAPEM == nil {
-		return common.NewOracleError(oracleErrors.InternalError, nil, "wallet contains no CA certificates; add the server CA certificate to the wallet or use WALLET_LOCATION=SYSTEM")
+		return common.NewOracleError(oracleErrors.WalletCACertificatesMissing, nil)
 	}
 
 	// Create client certificate
 	if keyPEM != nil {
 		clientCert, err = tls.X509KeyPair(rootCAPEM, keyPEM)
 		if err != nil {
-			return common.NewOracleError(oracleErrors.InternalError, err, "load key pair")
+			return common.NewOracleError(oracleErrors.WalletKeyPairLoadFailed, err)
 		}
 		nt.clientCert = &clientCert
 	}
@@ -307,7 +307,7 @@ func (nt *nttcps) processWallet() error {
 	if rootCAPEM != nil {
 		rootCAs = x509.NewCertPool()
 		if !rootCAs.AppendCertsFromPEM(rootCAPEM) {
-			return common.NewOracleError(oracleErrors.InternalError, nil, "failed to parse root CA certs")
+			return common.NewOracleError(oracleErrors.WalletCACertificatesParseFailed, nil)
 		}
 	}
 
@@ -368,7 +368,7 @@ func certificateRDNSequence(cert *x509.Certificate) (pkix.RDNSequence, error) {
 		return nil, err
 	}
 	if len(rest) != 0 {
-		return nil, common.NewOracleError(oracleErrors.InternalError, nil, "trailing data in certificate subject")
+		return nil, common.NewOracleError(oracleErrors.CertificateSubjectTrailingData, nil)
 	}
 	return rdns, nil
 }
@@ -378,7 +378,7 @@ func certificateRDNSequence(cert *x509.Certificate) (pkix.RDNSequence, error) {
 func parseConfiguredDN(str string) (pkix.RDNSequence, error) {
 	str = strings.TrimSpace(str)
 	if str == "" {
-		return nil, common.NewOracleError(oracleErrors.InternalError, nil, "empty DN")
+		return nil, common.NewOracleError(oracleErrors.ConfiguredDNInvalid, nil)
 	}
 
 	rdnParts, err := splitUnescaped(str, ',')
@@ -390,7 +390,7 @@ func parseConfiguredDN(str string) (pkix.RDNSequence, error) {
 	for _, rdnPart := range rdnParts {
 		rdnPart = strings.TrimSpace(rdnPart)
 		if rdnPart == "" {
-			return nil, common.NewOracleError(oracleErrors.InternalError, nil, "empty RDN")
+			return nil, common.NewOracleError(oracleErrors.ConfiguredDNInvalid, nil)
 		}
 
 		attributeParts, err := splitUnescaped(rdnPart, '+')
@@ -421,7 +421,7 @@ func parseConfiguredDN(str string) (pkix.RDNSequence, error) {
 func parseDNAttribute(str string) (pkix.AttributeTypeAndValue, error) {
 	str = strings.TrimSpace(str)
 	if str == "" {
-		return pkix.AttributeTypeAndValue{}, common.NewOracleError(oracleErrors.InternalError, nil, "empty DN attribute")
+		return pkix.AttributeTypeAndValue{}, common.NewOracleError(oracleErrors.DNHexValueUnsupported, nil)
 	}
 
 	equalIndex, err := indexUnescaped(str, '=')
@@ -429,25 +429,25 @@ func parseDNAttribute(str string) (pkix.AttributeTypeAndValue, error) {
 		return pkix.AttributeTypeAndValue{}, err
 	}
 	if equalIndex < 0 {
-		return pkix.AttributeTypeAndValue{}, common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "malformed DN attribute", str)
+		return pkix.AttributeTypeAndValue{}, common.NewOracleError(oracleErrors.DNMalformedAttribute, nil, str)
 	}
 
 	name := strings.ToUpper(strings.TrimSpace(str[:equalIndex]))
 	if name == "" {
-		return pkix.AttributeTypeAndValue{}, common.NewOracleError(oracleErrors.InternalError, nil, "empty DN attribute name")
+		return pkix.AttributeTypeAndValue{}, common.NewOracleError(oracleErrors.ConfiguredDNInvalid, nil)
 	}
 
 	oid, supported := dnNameToOID[name]
 	if !supported {
-		return pkix.AttributeTypeAndValue{}, common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "unsupported DN attribute", name)
+		return pkix.AttributeTypeAndValue{}, common.NewOracleError(oracleErrors.DNUnsupportedAttribute, nil, name)
 	}
 
 	rawValue := trimDNValueSpace(str[equalIndex+1:])
 	if rawValue == "" {
-		return pkix.AttributeTypeAndValue{}, common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "empty DN attribute value", name)
+		return pkix.AttributeTypeAndValue{}, common.NewOracleError(oracleErrors.DNAttributeValueMissing, nil, name)
 	}
 	if rawValue[0] == '#' {
-		return pkix.AttributeTypeAndValue{}, common.NewOracleError(oracleErrors.InternalError, nil, "hex-encoded DN values are not supported")
+		return pkix.AttributeTypeAndValue{}, common.NewOracleError(oracleErrors.ConfiguredDNInvalid, nil)
 	}
 
 	value, err := decodeDNValue(rawValue)
@@ -455,7 +455,7 @@ func parseDNAttribute(str string) (pkix.AttributeTypeAndValue, error) {
 		return pkix.AttributeTypeAndValue{}, err
 	}
 	if value == "" {
-		return pkix.AttributeTypeAndValue{}, common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "empty DN attribute value", name)
+		return pkix.AttributeTypeAndValue{}, common.NewOracleError(oracleErrors.DNAttributeValueMissing, nil, name)
 	}
 
 	return pkix.AttributeTypeAndValue{Type: oid, Value: value}, nil
@@ -469,7 +469,7 @@ func splitUnescaped(str string, separator byte) ([]string, error) {
 	for i := 0; i < len(str); i++ {
 		if str[i] == '\\' {
 			if i+1 >= len(str) {
-				return nil, common.NewOracleError(oracleErrors.InternalError, nil, "malformed DN escape: trailing backslash")
+				return nil, common.NewOracleError(oracleErrors.DNMalformedEscape, nil)
 			}
 			i++
 			continue
@@ -486,7 +486,7 @@ func indexUnescaped(str string, target byte) (int, error) {
 	for i := 0; i < len(str); i++ {
 		if str[i] == '\\' {
 			if i+1 >= len(str) {
-				return -1, common.NewOracleError(oracleErrors.InternalError, nil, "malformed DN escape: trailing backslash")
+				return -1, common.NewOracleError(oracleErrors.DNMalformedEscape, nil)
 			}
 			i++
 			continue
@@ -533,7 +533,7 @@ func decodeDNValue(str string) (string, error) {
 			continue
 		}
 		if i+1 >= len(str) {
-			return "", common.NewOracleError(oracleErrors.InternalError, nil, "malformed DN escape: trailing backslash")
+			return "", common.NewOracleError(oracleErrors.DNMalformedEscape, nil)
 		}
 
 		if i+2 < len(str) && isHexDigit(str[i+1]) && isHexDigit(str[i+2]) {
@@ -544,14 +544,14 @@ func decodeDNValue(str string) (string, error) {
 
 		next := str[i+1]
 		if !isEscapableDNChar(next) {
-			return "", common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "malformed DN escape", str[i:i+2])
+			return "", common.NewOracleError(oracleErrors.DNMalformedEscape, nil)
 		}
 		out = append(out, next)
 		i++
 	}
 
 	if !utf8.Valid(out) {
-		return "", common.NewOracleError(oracleErrors.InternalError, nil, "DN attribute value is not valid UTF-8")
+		return "", common.NewOracleError(oracleErrors.DNAttributeValueInvalidUTF8, nil)
 	}
 	return string(out), nil
 }
@@ -585,12 +585,12 @@ func isEscapableDNChar(b byte) bool {
 func verifyDN(cert *x509.Certificate, dnString string) error {
 	configured, err := parseConfiguredDN(dnString)
 	if err != nil {
-		return common.NewOracleError(oracleErrors.InternalError, err, "invalid configured DN")
+		return err
 	}
 
 	certSubject, err := certificateRDNSequence(cert)
 	if err != nil {
-		return common.NewOracleError(oracleErrors.InternalError, err, "parse server certificate subject")
+		return common.NewOracleError(oracleErrors.CertificateSubjectParseFailed, err)
 	}
 
 	if len(configured) != len(certSubject) {
@@ -599,7 +599,7 @@ func verifyDN(cert *x509.Certificate, dnString string) error {
 
 	for i := range configured {
 		if err := compareRDNs(configured[i], certSubject[i]); err != nil {
-			return common.NewOracleError(oracleErrors.InvalidNetworkValue, err, "DN mismatch at RDN", i)
+			return common.NewOracleError(oracleErrors.DNMismatchAtRDN, err, i)
 		}
 	}
 	return nil
@@ -622,7 +622,7 @@ func compareRDNs(configured, certSubject pkix.RelativeDistinguishedNameSET) erro
 	for _, configuredAttr := range configured {
 		configuredValue, ok := configuredAttr.Value.(string)
 		if !ok {
-			return common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "configured DN attribute OID has non-string value", configuredAttr.Type)
+			return common.NewOracleError(oracleErrors.DNAttributeOIDValueTypeInvalid, nil, configuredAttr.Type)
 		}
 
 		found := false
@@ -633,7 +633,7 @@ func compareRDNs(configured, certSubject pkix.RelativeDistinguishedNameSET) erro
 			found = true
 			certValue, ok := certAttr.Value.(string)
 			if !ok {
-				return common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "server certificate subject attribute OID has non-string value", certAttr.Type)
+				return common.NewOracleError(oracleErrors.DNAttributeOIDValueTypeInvalid, nil, certAttr.Type)
 			}
 			if certValue != configuredValue {
 				return common.NewOracleError(oracleErrors.InvalidNetworkContextExpectedValue, nil, "DN attribute value", configuredAttr.Type.String(), certValue, configuredValue)
@@ -641,7 +641,7 @@ func compareRDNs(configured, certSubject pkix.RelativeDistinguishedNameSET) erro
 			break
 		}
 		if !found {
-			return common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "configured attribute OID not found in server certificate subject", configuredAttr.Type)
+			return common.NewOracleError(oracleErrors.DNAttributeMissingFromCertificate, nil, configuredAttr.Type)
 		}
 	}
 	return nil
@@ -653,15 +653,15 @@ func validateRDN(rdn pkix.RelativeDistinguishedNameSET, source string) error {
 	for i, atv := range rdn {
 		oid := atv.Type.String()
 		if _, supported := supportedDNOIDs[oid]; !supported {
-			return common.NewOracleError(oracleErrors.InvalidNetworkContextValue, nil, "contains unsupported attribute OID", source, atv.Type)
+			return common.NewOracleError(oracleErrors.DNUnsupportedAttributeOID, nil, atv.Type)
 		}
 
 		if _, ok := atv.Value.(string); !ok {
-			return common.NewOracleError(oracleErrors.InvalidNetworkContextValue, nil, "attribute OID has non-string value", source, atv.Type)
+			return common.NewOracleError(oracleErrors.DNAttributeOIDValueTypeInvalid, nil, atv.Type)
 		}
 		for j := 0; j < i; j++ {
 			if rdn[j].Type.Equal(atv.Type) {
-				return common.NewOracleError(oracleErrors.InvalidNetworkContextValue, nil, "contains duplicate attribute OID within RDN", source, atv.Type)
+				return common.NewOracleError(oracleErrors.DNDuplicateAttributeOID, nil, atv.Type)
 			}
 		}
 	}

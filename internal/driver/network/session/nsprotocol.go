@@ -101,7 +101,7 @@ func newNetworkSession() *networkSession {
 // transportConnect establishes the transport-level connection
 func (ns *networkSession) transportConnect(ctx context.Context, address transport.Address) error {
 	if address.Protocol == driverCommon.ProtocolTCP && address.HTTPSProxy != "" {
-		return common.NewOracleError(oracleErrors.InternalError, nil, "https proxy requires protocol as tcps")
+		return common.NewOracleError(oracleErrors.UnsupportedFeature, nil, "HTTPS proxy")
 	}
 	if ns.ntAdapter == nil {
 		if address.Protocol == driverCommon.ProtocolTCP {
@@ -131,7 +131,7 @@ func (ns *networkSession) handleAccept(ctx context.Context, p *acceptPacket) err
 		if err != nil {
 			return err
 		}
-		return common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "unsupported TNS version", ns.sAtts.version, TNS_VERSION_MINIMUM)
+		return common.NewOracleError(oracleErrors.InvalidNetworkContextExpectedValue, nil, "TNS version", "NSPTAC", ns.sAtts.version, TNS_VERSION_MINIMUM)
 	}
 
 	if ns.sAtts.version >= TNS_VERSION_MIN_DATA_FLAGS {
@@ -139,7 +139,7 @@ func (ns *networkSession) handleAccept(ctx context.Context, p *acceptPacket) err
 		if len(p.buf) < NSPACFL2+4 { // we gonna read an Uint32
 			msg := fmt.Sprintf("Unexpected buffer length (%d) in accept packet", len(p.buf))
 			common.Odl.Warn(msg)
-			return common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "unexpected accept packet buffer length", len(p.buf), NSPACFL2+4)
+			return common.NewOracleError(oracleErrors.InvalidNetworkContextExpectedValue, nil, "packet length", "NSPTAC", len(p.buf), NSPACFL2+4)
 		}
 		acceptFlag2 := binary.BigEndian.Uint32(p.buf[NSPACFL2:])
 		ns.endOfRequestSupport = (acceptFlag2&TNS_ACCEPT_FLAG_HAS_END_OF_REQUEST != 0)
@@ -226,7 +226,7 @@ func (ns *networkSession) handleRefuse(ctx context.Context, p *refusePacket, add
 	}
 	refuseNode, err := naming.Parse(p.dataBuf)
 	if err != nil {
-		return common.NewOracleError(oracleErrors.InternalError, err, "parse error in refuse data")
+		return common.NewOracleError(oracleErrors.RefuseDataParseFailed, err)
 	}
 	errCode, err := refuseNode.GetValue("DESCRIPTION/ERR")
 	if err != nil {
@@ -315,7 +315,7 @@ func (ns *networkSession) handleRedirect(ctx context.Context, p *redirectPacket,
 		}
 		return nil // continue the loop
 	}
-	return common.NewOracleError(oracleErrors.InternalError, nil, "no redirect option available")
+	return common.NewOracleError(oracleErrors.RedirectAddressMissing, nil)
 }
 
 func (ns *networkSession) handleResend(ctx context.Context, p *resendPacket, connectPkt *connectPacket) error {
@@ -330,7 +330,7 @@ func (ns *networkSession) handleResend(ctx context.Context, p *resendPacket, con
 			an error when there's no TLS-capable adapter behind the session.
 		*/
 		if !ok {
-			return common.NewOracleError(oracleErrors.InternalError, nil, "invalid resend flag for non-TCPS connection")
+			return common.NewOracleError(oracleErrors.TLSRenegotiationRequiresTCPS, nil)
 		}
 		tlsAdapter.TLSReneg()
 	}
@@ -408,7 +408,7 @@ func (ns *networkSession) connect(ctx context.Context, address transport.Address
 			if disconnectErr := ns.Disconnect(ctx, 0); disconnectErr != nil {
 				return disconnectErr
 			}
-			return common.NewOracleError(oracleErrors.InternalError, nil, "unexpected packet type during connect")
+			return common.NewOracleError(oracleErrors.UnexpectedConnectResponse, nil)
 		}
 	}
 }
@@ -476,12 +476,12 @@ func (ns *networkSession) sendConnect(ctx context.Context, connectPkt *connectPa
 
 	err := ns.SendPacket(ctx, connectPkt.buf)
 	if err != nil {
-		return common.NewOracleError(oracleErrors.InternalError, err, "send connect packet failed")
+		return err
 	}
 	if connectPkt.overflow {
 		err = ns.Send(ctx, connectPkt.connectData, 0, connectPkt.connectDataLen)
 		if err != nil {
-			return common.NewOracleError(oracleErrors.InternalError, err, "send connect packet failed")
+			return err
 		}
 	}
 	return nil
@@ -527,7 +527,7 @@ func (ns *networkSession) recvPacket(ctx context.Context) (any, error) {
 	}
 
 	if packetLen < PACKET_HEADER_SIZE || packetLen > len(ns.rcvBuf) {
-		return nil, common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "invalid packet length", packetLen)
+		return nil, common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "packet length", packetLen)
 	}
 	bodyLen := packetLen - PACKET_HEADER_SIZE
 	if bodyLen > 0 {
@@ -536,7 +536,7 @@ func (ns *networkSession) recvPacket(ctx context.Context) (any, error) {
 			return nil, err
 		}
 		if n != bodyLen {
-			return nil, common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "incomplete body read", n, bodyLen)
+			return nil, common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "packet body length", n, bodyLen)
 		}
 	}
 	buf := ns.rcvBuf[:packetLen]
@@ -589,7 +589,7 @@ func (ns *networkSession) processPacket(buf []byte, hdr *header) (any, error) {
 	case NSPTDA:
 		packet = ns.rcvDatapkt
 	default:
-		return nil, common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "unsupported packet type", hdr.typ)
+		return nil, common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "packet type", hdr.typ)
 	}
 	err := packet.unmarshal(buf, ns.sAtts, hdr)
 	if err != nil {
@@ -615,7 +615,7 @@ func (ns *networkSession) processPacket(buf []byte, hdr *header) (any, error) {
 func (ns *networkSession) SendPacket(ctx context.Context, buf []byte) error {
 	PrintPacket(buf, 0, len(buf))
 	if len(buf) < PACKET_HEADER_SIZE {
-		return common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "buffer too short", len(buf), PACKET_HEADER_SIZE)
+		return common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "packet buffer length", len(buf), PACKET_HEADER_SIZE)
 	}
 	return ns.ntAdapter.Send(ctx, buf)
 }

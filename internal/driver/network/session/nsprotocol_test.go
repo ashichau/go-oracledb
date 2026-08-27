@@ -159,7 +159,7 @@ func TestTransportConnect(t *testing.T) {
 		HTTPSProxy: "proxy",
 	}
 	err := ns.transportConnect(context.Background(), address)
-	if err == nil || !strings.Contains(err.Error(), "https proxy requires protocol as tcps") {
+	if err == nil || !strings.Contains(err.Error(), "HTTPS proxy feature is not supported") {
 		t.Errorf("Expected HTTPS proxy error, got %v", err)
 	}
 
@@ -502,7 +502,7 @@ func TestConnectSubtests(t *testing.T) {
 			t.Errorf("Unexpected sendConnect error: %v", err)
 		}
 		pkt, err := ns.recvPacket(context.Background())
-		if err == nil || !strings.Contains(err.Error(), "unsupported packet type") {
+		if err == nil || !strings.Contains(err.Error(), "packet type") {
 			t.Errorf("Expected unexpected packet error, got %v", err)
 		}
 		_ = pkt // to avoid unused
@@ -579,7 +579,7 @@ func TestConnectSubtests(t *testing.T) {
 		err := ns.connect(context.Background(), transport.Address{
 			Address: naming.Address{Protocol: driverCommon.ProtocolTCP, Host: "localhost", Port: 1521},
 		})
-		if err == nil || !strings.Contains(err.Error(), "unsupported TNS version") {
+		if err == nil || !strings.Contains(err.Error(), "TNS version (NSPTAC)") {
 			t.Errorf("Expected handleAccept error, got %v", err)
 		}
 	})
@@ -1171,7 +1171,7 @@ func TestProcessPacket(t *testing.T) {
 	// Test unsupported type
 	hdr.typ = 99
 	_, err = ns.processPacket(buf, hdr)
-	if err == nil || !strings.Contains(err.Error(), "unsupported packet type: 99") {
+	if err == nil || !strings.Contains(err.Error(), "packet type: 99") {
 		t.Errorf("Expected unsupported type error")
 	}
 
@@ -1437,7 +1437,7 @@ func TestHandleRefuse(t *testing.T) {
 		p := &refusePacket{overflow: false, dataBuf: "invalid"}
 		ns.cData = []byte("(DESCRIPTION=(CONNECT_DATA=(SERVICE_NAME=orcl)))")
 		err := ns.handleRefuse(context.Background(), p, address)
-		if err == nil || !strings.Contains(err.Error(), "parse error") {
+		if err == nil || !strings.Contains(err.Error(), "failed to parse refuse data") {
 			t.Errorf("Expected parse error, got %v", err)
 		}
 	})
@@ -1488,7 +1488,7 @@ func TestHandleResend(t *testing.T) {
 		}
 		p := &resendPacket{hdr: &header{flags: NSPFSRN}}
 		err := ns.handleResend(context.Background(), p, connectPkt)
-		if err == nil || !strings.Contains(err.Error(), "invalid resend flag") {
+		if err == nil || !strings.Contains(err.Error(), "TLS renegotiation requires a TCPS connection") {
 			t.Errorf("Expected invalid resend flag error, got %v", err)
 		}
 	})

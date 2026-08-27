@@ -73,7 +73,7 @@ func (ns *networkSession) PrepareReadBuffer(ctx context.Context) error {
 func (ns *networkSession) fillReadBuffer(ctx context.Context) error {
 	_, err := ns.recvPacket(ctx)
 	if ns.isBreak {
-		return common.NewOracleError(oracleErrors.InternalError, nil, "break packet received")
+		return common.NewOracleError(oracleErrors.BreakPacketReceived, nil)
 	}
 	if err != nil {
 		return err
@@ -88,7 +88,7 @@ func (ns *networkSession) ReadByteWithContext(ctx context.Context) (byte, error)
 
 func (ns *networkSession) ReadBytesWithContext(ctx context.Context, length int32) (*[]byte, error) {
 	if length < 0 {
-		return nil, common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "invalid buffer length", length, 0)
+		return nil, common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "buffer length", length, 0)
 	}
 	return ns.readNBytes(ctx, int(length))
 }
@@ -176,10 +176,10 @@ func (ns *networkSession) readMultiPacket(ctx context.Context, buf []byte, numBy
 		if remaining == 0 {
 			_, err := ns.recvPacket(ctx)
 			if ns.isBreak {
-				return common.NewOracleError(oracleErrors.InternalError, nil, "break packet received")
+				return common.NewOracleError(oracleErrors.BreakPacketReceived, nil)
 			}
 			if err != nil {
-				return common.NewOracleError(oracleErrors.InternalError, err, "failed to receive next packet")
+				return err
 			}
 			continue
 		}
@@ -190,7 +190,7 @@ func (ns *networkSession) readMultiPacket(ctx context.Context, buf []byte, numBy
 		}
 		data, err := ns.rcvDatapkt.Read(bytesToRead)
 		if err != nil {
-			return common.NewOracleError(oracleErrors.InternalError, err, "failed to read from current packet")
+			return common.NewOracleError(oracleErrors.InternalError, err, "data packet read")
 		}
 
 		copy(buf[bytesRead:], data)
@@ -416,7 +416,7 @@ func (ns *networkSession) Flush(ctx context.Context) error {
 	err = ns.SendPacket(ctx, ns.sndDatapkt.buf[:ns.sndDatapkt.offset])
 	if err != nil {
 		if err == io.EOF {
-			return common.NewOracleError(oracleErrors.InternalError, err, "connection closed during flush")
+			return common.NewOracleError(oracleErrors.ConnectionClosed, err)
 		}
 		return err
 	}

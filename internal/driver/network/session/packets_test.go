@@ -256,8 +256,8 @@ func TestDataPacketUnmarshal(t *testing.T) {
 	for _, packetLen := range []uint32{8, 9} {
 		hdr := &header{packetLength: packetLen, typ: NSPTDA}
 		err = dp.unmarshal(buf[:packetLen], sAtts, hdr)
-		if err == nil || !strings.Contains(err.Error(), "data packet too short") {
-			t.Errorf("Expected data packet too short error for length %d, got %v", packetLen, err)
+		if err == nil || !strings.Contains(err.Error(), "packet length (NSPTDA)") {
+			t.Errorf("Expected NSPTDA packet length error for length %d, got %v", packetLen, err)
 		}
 	}
 }
