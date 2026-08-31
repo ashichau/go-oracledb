@@ -36,8 +36,8 @@
 ** SOFTWARE.
  */
 
-// Package main demonstrates opening an Oracle database connection with
-// oracle.NewOracleConnector and sql.OpenDB.
+// Package main shows OAuth token authentication using a file-backed
+// provider registered on an Oracle connector.
 package main
 
 import (
@@ -46,31 +46,43 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/oracle/go-oracledb/v26/oracle"
+	oracleProviders "github.com/oracle/go-oracledb/v26/oracle/providers"
 )
 
-func main() {
-	// Keep credentials separate from the connect descriptor when using a connector.
-	connectDescriptor := os.Getenv("ORACLE_DSN")
-	user := os.Getenv("ORACLE_USER")
-	password := os.Getenv("ORACLE_PASSWORD")
-	if connectDescriptor == "" || user == "" || password == "" {
-		log.Fatal("set ORACLE_DSN, ORACLE_USER, and ORACLE_PASSWORD")
-	}
+// fileOAuthTokenProvider implements TokenAuthenticationProvider interface.
+type fileOAuthTokenProvider struct {
+	tokenPath string
+}
 
-	// Build an explicit driver configuration for NewOracleConnector.
+// Token returns the token used for token authentication
+func (p *fileOAuthTokenProvider) Token(context.Context) (string, error) {
+	return readTrimmedFile(p.tokenPath)
+}
+
+func main() {
+	connectDescriptor := requiredEnv("ORACLE_GO_OAUTH_CONNECT_DESCRIPTOR")
+	tokenPath := requiredEnv("ORACLE_GO_OAUTH_TOKEN_FILE")
+
 	cfg := oracle.NewOracleDriverConfig()
 	cfg.ConnectDescriptor = connectDescriptor
-	cfg.Credentials.User = user
-	cfg.Credentials.Password = password
 
-	// sql.OpenDB accepts the connector returned by the driver API.
 	connector, err := oracle.NewOracleConnector(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// Check that the connector implements ProviderRegistrar
+	registrar, ok := connector.(oracleProviders.ProviderRegistrar)
+	if !ok {
+		log.Fatal("connector does not support provider registration")
+	}
+	// register the provider, the provider methods will be called by
+	// the driver during token-based authentication
+	registrar.RegisterProvider(&fileOAuthTokenProvider{tokenPath: tokenPath})
 
 	db := sql.OpenDB(connector)
 	defer db.Close()
@@ -78,16 +90,40 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Ping validates that authentication and session creation succeeded.
 	if err := db.PingContext(ctx); err != nil {
 		log.Fatal(err)
 	}
 
-	// Run a minimal query using the established connection pool.
-	var currentUser string
-	if err := db.QueryRowContext(ctx, "select user from dual").Scan(&currentUser); err != nil {
+	var current_user, authenticated_identity, identification_type, enterprise_identity, proxy_user sql.NullString
+	if err := db.QueryRowContext(ctx, "SELECT "+
+		"SYS_CONTEXT('userenv', 'current_user') AS current_user,"+
+		" SYS_CONTEXT('userenv', 'authenticated_identity') AS authenticated_identity,"+
+		" SYS_CONTEXT('userenv', 'IDENTIFICATION_TYPE') AS identification_type,"+
+		" SYS_CONTEXT('USERENV','ENTERPRISE_IDENTITY') AS enterprise_identity,"+
+		" sys_context('userenv','proxy_user') as proxy_user FROM sys.dual").
+		Scan(&current_user, &authenticated_identity, &identification_type, &enterprise_identity, &proxy_user); err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("Connected to Oracle as %s\n", currentUser)
+	fmt.Printf("current_user: %s\n", current_user.String)
+	fmt.Printf("authenticated_identity: %s\n", authenticated_identity.String)
+	fmt.Printf("identification_type: %s\n", identification_type.String)
+	fmt.Printf("enterprise_identity: %s\n", enterprise_identity.String)
+	fmt.Printf("proxy_user: %s\n", proxy_user.String)
+}
+
+func requiredEnv(name string) string {
+	value := strings.TrimSpace(os.Getenv(name))
+	if value == "" {
+		log.Fatalf("missing required environment variable %s", name)
+	}
+	return value
+}
+
+func readTrimmedFile(path string) (string, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(content)), nil
 }
