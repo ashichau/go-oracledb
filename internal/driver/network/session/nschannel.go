@@ -88,7 +88,7 @@ func (ns *networkSession) ReadByteWithContext(ctx context.Context) (byte, error)
 
 func (ns *networkSession) ReadBytesWithContext(ctx context.Context, length int32) (*[]byte, error) {
 	if length < 0 {
-		return nil, common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "buffer length", length, 0)
+		return nil, common.NewOracleError(oracleErrors.InvalidNetworkLength, nil, "buffer", length)
 	}
 	return ns.readNBytes(ctx, int(length))
 }
@@ -190,7 +190,7 @@ func (ns *networkSession) readMultiPacket(ctx context.Context, buf []byte, numBy
 		}
 		data, err := ns.rcvDatapkt.Read(bytesToRead)
 		if err != nil {
-			return common.NewOracleError(oracleErrors.InternalError, err, "data packet read")
+			return common.NewOracleError(oracleErrors.NetworkDataReadFailed, err)
 		}
 
 		copy(buf[bytesRead:], data)

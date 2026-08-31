@@ -44,6 +44,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	oracleErrors "github.com/oracle/go-oracledb/v26/oracle/errors"
 )
 
 func TestHeaderMarshalUnmarshal(t *testing.T) {
@@ -573,7 +575,7 @@ func TestControlPacketUnmarshal(t *testing.T) {
 	binary.BigEndian.PutUint32(buf[NSPCTLDAT:], 22)
 	binary.BigEndian.PutUint32(buf[NSPCTLDAT+4:], 12345)
 	err = cp.unmarshal(buf, nil, hdr)
-	if err == nil || !errors.Is(err, ErrConnectionInband) || !strings.Contains(err.Error(), "ORA-12345") {
+	if err == nil || !errors.Is(err, oracleErrors.ErrConnectionInband) || !strings.Contains(err.Error(), "ORA-12345") {
 		t.Errorf("Unexpected error for ORA error: %v", err)
 	}
 
@@ -581,7 +583,7 @@ func TestControlPacketUnmarshal(t *testing.T) {
 	binary.BigEndian.PutUint32(buf[NSPCTLDAT:], 0)
 	binary.BigEndian.PutUint32(buf[NSPCTLDAT+4:], 12345)
 	err = cp.unmarshal(buf, nil, hdr)
-	if err == nil || !errors.Is(err, ErrConnectionInband) || !strings.Contains(err.Error(), "TNS-12345") {
+	if err == nil || !errors.Is(err, oracleErrors.ErrConnectionInband) || !strings.Contains(err.Error(), "TNS-12345") {
 		t.Errorf("Unexpected error for TNS error: %v", err)
 	}
 
@@ -623,7 +625,7 @@ func TestControlPacketUnmarshal(t *testing.T) {
 	binary.BigEndian.PutUint32(buf[NSPCTLDAT:], 999)
 	binary.BigEndian.PutUint32(buf[NSPCTLDAT+4:], 12345)
 	err = cp.unmarshal(buf, nil, hdr)
-	if err == nil || !errors.Is(err, ErrConnectionInband) || !strings.Contains(err.Error(), "TNS-12345") {
+	if err == nil || !errors.Is(err, oracleErrors.ErrConnectionInband) || !strings.Contains(err.Error(), "TNS-12345") {
 		t.Errorf("Expected inband connection error, got %v", err)
 	}
 }

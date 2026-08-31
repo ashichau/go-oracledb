@@ -1,5 +1,10 @@
 package errors
 
+import "errors"
+
+// ErrConnectionInband identifies a server error received in-band.
+var ErrConnectionInband = errors.New("inband connection error")
+
 // SQLError errors returned by the driver should implement this interface.
 type SQLError interface {
 	error
@@ -106,6 +111,10 @@ const (
 	DNAttributeValueMissing              ErrorCode = "OGD-00042"
 	DNMalformedEscape                    ErrorCode = "OGD-00043"
 	DNMismatchAtRDN                      ErrorCode = "OGD-00044"
+	InvalidNetworkLength                 ErrorCode = "OGD-00045"
+	NetworkDataReadFailed                ErrorCode = "OGD-00046"
+	InvalidNetworkExpectedLength         ErrorCode = "OGD-00047"
+	InvalidNetworkContextExpectedLength  ErrorCode = "OGD-00048"
 	DNAttributeMissingFromCertificate    ErrorCode = "OGD-00111"
 	DNUnsupportedAttributeOID            ErrorCode = "OGD-00112"
 	DNDuplicateAttributeOID              ErrorCode = "OGD-00113"
@@ -119,7 +128,7 @@ const (
 	BreakPacketReceived                  ErrorCode = "OGD-00121"
 	RefuseDataParseFailed                ErrorCode = "OGD-00122"
 	RedirectAddressMissing               ErrorCode = "OGD-00123"
-	TLSRenegotiationRequiresTCPS         ErrorCode = "OGD-00124"
+	TLSRenegotiationUnsupported          ErrorCode = "OGD-00124"
 	UnexpectedConnectResponse            ErrorCode = "OGD-00125"
 	NamingInputMissing                   ErrorCode = "OGD-00126"
 	NamingTokensMissing                  ErrorCode = "OGD-00127"

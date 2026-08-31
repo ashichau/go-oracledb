@@ -139,7 +139,7 @@ func (ns *networkSession) handleAccept(ctx context.Context, p *acceptPacket) err
 		if len(p.buf) < NSPACFL2+4 { // we gonna read an Uint32
 			msg := fmt.Sprintf("Unexpected buffer length (%d) in accept packet", len(p.buf))
 			common.Odl.Warn(msg)
-			return common.NewOracleError(oracleErrors.InvalidNetworkContextExpectedValue, nil, "packet length", "NSPTAC", len(p.buf), NSPACFL2+4)
+			return common.NewOracleError(oracleErrors.InvalidNetworkContextExpectedLength, nil, "packet", "NSPTAC", len(p.buf), NSPACFL2+4)
 		}
 		acceptFlag2 := binary.BigEndian.Uint32(p.buf[NSPACFL2:])
 		ns.endOfRequestSupport = (acceptFlag2&TNS_ACCEPT_FLAG_HAS_END_OF_REQUEST != 0)
@@ -330,7 +330,7 @@ func (ns *networkSession) handleResend(ctx context.Context, p *resendPacket, con
 			an error when there's no TLS-capable adapter behind the session.
 		*/
 		if !ok {
-			return common.NewOracleError(oracleErrors.TLSRenegotiationRequiresTCPS, nil)
+			return common.NewOracleError(oracleErrors.TLSRenegotiationUnsupported, nil)
 		}
 		tlsAdapter.TLSReneg()
 	}
@@ -527,7 +527,7 @@ func (ns *networkSession) recvPacket(ctx context.Context) (any, error) {
 	}
 
 	if packetLen < PACKET_HEADER_SIZE || packetLen > len(ns.rcvBuf) {
-		return nil, common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "packet length", packetLen)
+		return nil, common.NewOracleError(oracleErrors.InvalidNetworkLength, nil, "packet", packetLen)
 	}
 	bodyLen := packetLen - PACKET_HEADER_SIZE
 	if bodyLen > 0 {
@@ -536,7 +536,7 @@ func (ns *networkSession) recvPacket(ctx context.Context) (any, error) {
 			return nil, err
 		}
 		if n != bodyLen {
-			return nil, common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "packet body length", n, bodyLen)
+			return nil, common.NewOracleError(oracleErrors.InvalidNetworkExpectedLength, nil, "packet body", n, bodyLen)
 		}
 	}
 	buf := ns.rcvBuf[:packetLen]
@@ -615,7 +615,7 @@ func (ns *networkSession) processPacket(buf []byte, hdr *header) (any, error) {
 func (ns *networkSession) SendPacket(ctx context.Context, buf []byte) error {
 	PrintPacket(buf, 0, len(buf))
 	if len(buf) < PACKET_HEADER_SIZE {
-		return common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "packet buffer length", len(buf), PACKET_HEADER_SIZE)
+		return common.NewOracleError(oracleErrors.InvalidNetworkExpectedLength, nil, "packet buffer", len(buf), PACKET_HEADER_SIZE)
 	}
 	return ns.ntAdapter.Send(ctx, buf)
 }

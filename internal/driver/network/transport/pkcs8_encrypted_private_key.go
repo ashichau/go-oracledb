@@ -193,19 +193,19 @@ func validatePBKDF2Params(kdf pbkdf2Params, expectedKeyLen int) error {
 		return common.NewOracleError(oracleErrors.InvalidNetworkProperty, nil, "PBKDF2 salt")
 	}
 	if len(kdf.Salt) > maxPBKDF2SaltLength {
-		return common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "PBKDF2 salt length", len(kdf.Salt), maxPBKDF2SaltLength)
+		return common.NewOracleError(oracleErrors.InvalidNetworkExpectedLength, nil, "PBKDF2 salt", len(kdf.Salt), maxPBKDF2SaltLength)
 	}
 	if kdf.Iterations <= 0 || kdf.Iterations > maxPBKDF2Iterations {
 		return common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "PBKDF2 iteration count", kdf.Iterations)
 	}
 	if expectedKeyLen <= 0 {
-		return common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "PBKDF2 key length", expectedKeyLen)
+		return common.NewOracleError(oracleErrors.InvalidNetworkLength, nil, "PBKDF2 key", expectedKeyLen)
 	}
 	if kdf.KeyLength < 0 {
-		return common.NewOracleError(oracleErrors.InvalidNetworkValue, nil, "PBKDF2 key length", kdf.KeyLength)
+		return common.NewOracleError(oracleErrors.InvalidNetworkLength, nil, "PBKDF2 key", kdf.KeyLength)
 	}
 	if kdf.KeyLength != 0 && kdf.KeyLength != expectedKeyLen {
-		return common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "PBKDF2 key length", kdf.KeyLength, expectedKeyLen)
+		return common.NewOracleError(oracleErrors.InvalidNetworkExpectedLength, nil, "PBKDF2 key", kdf.KeyLength, expectedKeyLen)
 	}
 	return nil
 }
@@ -265,14 +265,14 @@ func decryptCBC(key, iv, ciphertext []byte, newCipher func([]byte) (cipher.Block
 		return nil, err
 	}
 	if len(iv) != blockSize {
-		return nil, common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "IV length", len(iv), blockSize)
+		return nil, common.NewOracleError(oracleErrors.InvalidNetworkExpectedLength, nil, "IV", len(iv), blockSize)
 	}
 	if len(ciphertext) == 0 {
 		return nil, common.NewOracleError(oracleErrors.InvalidNetworkProperty, nil, "ciphertext")
 	}
 
 	if len(ciphertext)%blockSize != 0 {
-		return nil, common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "ciphertext length", len(ciphertext), blockSize)
+		return nil, common.NewOracleError(oracleErrors.InvalidNetworkExpectedLength, nil, "ciphertext", len(ciphertext), blockSize)
 	}
 
 	plaintext := make([]byte, len(ciphertext))
@@ -288,7 +288,7 @@ func stripPKCS7Padding(data []byte, blockSize int) ([]byte, error) {
 		return nil, common.NewOracleError(oracleErrors.InvalidNetworkProperty, nil, "decrypted data")
 	}
 	if len(data)%blockSize != 0 {
-		return nil, common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "decrypted data length", len(data), blockSize)
+		return nil, common.NewOracleError(oracleErrors.InvalidNetworkExpectedLength, nil, "decrypted data", len(data), blockSize)
 	}
 
 	padLen := int(data[len(data)-1])

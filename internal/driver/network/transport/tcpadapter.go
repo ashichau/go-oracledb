@@ -151,7 +151,7 @@ func (nt *nttcp) Send(ctx context.Context, buf []byte) error {
 func (nt *nttcp) Receive(ctx context.Context, buf []byte, bytes2Read int) (int, error) {
 
 	if bytes2Read > len(buf) {
-		return 0, common.NewOracleError(oracleErrors.InvalidNetworkExpectedValue, nil, "buffer length", len(buf), bytes2Read)
+		return 0, common.NewOracleError(oracleErrors.InvalidNetworkExpectedLength, nil, "buffer", len(buf), bytes2Read)
 	}
 
 	var ctxToBeUsed context.Context
