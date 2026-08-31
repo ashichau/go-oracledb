@@ -60,27 +60,26 @@ import (
 
 // networkSession represents a network session for communication with the server
 type networkSession struct {
-	connected           bool
-	isBreak             bool
-	isReset             bool
-	breakPosted         bool
-	compressionEnabled  bool
-	endOfRequestSupport bool
-	supportsFastAuth    bool
-	redirectCount       int
-	resendCount         int
-	sAtts               *sessionAtts
-	ntAdapter           transport.NTAdapter
-	cData               []byte
-	cDataNVPair         interface{}
-	sndDatapkt          *dataPacket
-	rcvDatapkt          *dataPacket
-	controlPkt          *controlPacket
-	byteOrder           driverCommon.ByteOrder
-	rcvBuf              []byte
-	sndBuf              []byte
-	pendingPacket       []byte // to store pushed back packet from CheckinbandNotification
-	resetInProgress     bool
+	connected                 bool
+	isBreak                   bool
+	isReset                   bool
+	breakPosted               bool
+	endOfRequestSupport       bool
+	supportsFastAuth          bool
+	redirectCount             int
+	resendCount               int
+	sAtts                     *sessionAtts
+	ntAdapter                 transport.NTAdapter
+	cData                     []byte
+	cDataNVPair               interface{}
+	sndDatapkt                *dataPacket
+	rcvDatapkt                *dataPacket
+	controlPkt                *controlPacket
+	byteOrder                 driverCommon.ByteOrder
+	rcvBuf                    []byte
+	sndBuf                    []byte
+	pendingPacket             []byte // to store pushed back packet from CheckinbandNotification
+	resetInProgress           bool
 	firstRecvCompressedPacket bool
 }
 
@@ -92,15 +91,14 @@ const (
 // newNetworkSession creates a new networkSession instance
 func newNetworkSession() *networkSession {
 	return &networkSession{
-		connected:          false,
-		isBreak:            false,
-		isReset:            false,
-		breakPosted:        false,
-		compressionEnabled: false,
-		sndDatapkt:         &dataPacket{},
-		rcvDatapkt:         &dataPacket{},
-		controlPkt:         &controlPacket{},
-		byteOrder:          driverCommon.BIG_ENDIAN,
+		connected:                 false,
+		isBreak:                   false,
+		isReset:                   false,
+		breakPosted:               false,
+		sndDatapkt:                &dataPacket{},
+		rcvDatapkt:                &dataPacket{},
+		controlPkt:                &controlPacket{},
+		byteOrder:                 driverCommon.BIG_ENDIAN,
 		firstRecvCompressedPacket: true,
 	}
 }
@@ -214,10 +212,6 @@ func (ns *networkSession) handleAccept(ctx context.Context, p *acceptPacket) err
 	if err != nil {
 		ns.Disconnect(ctx, 0)
 		return err
-	}
-	if ns.sAtts.networkCompressionEnabled {
-		// Compression is usable only after the listener accepted it in NSPTAC.
-		ns.compressionEnabled = true
 	}
 	return nil
 }
@@ -641,7 +635,7 @@ func (ns *networkSession) processPacket(buf []byte, hdr *header) (any, error) {
 		packet = ns.controlPkt
 	case NSPTDA:
 		flags := binary.BigEndian.Uint16(buf[NSPDAFLG:])
-		if ns.compressionEnabled && flags&NSPDAFCMP != 0 {
+		if ns.sAtts != nil && ns.sAtts.networkCompressionEnabled && flags&NSPDAFCMP != 0 {
 			// NSPDAFCMP applies only to the payload; keep the wire header intact.
 			header := append([]byte(nil), buf[:NSPDADAT]...)
 			payload := buf[NSPDADAT:]
@@ -707,7 +701,7 @@ func (ns *networkSession) SendPacket(ctx context.Context, buf []byte) error {
 	if len(buf) < PACKET_HEADER_SIZE {
 		return fmt.Errorf("buffer too short: %d bytes, need at least %d", len(buf), PACKET_HEADER_SIZE)
 	}
-	if ns.compressionEnabled && len(buf) > ns.sAtts.networkCompressionThreshold && buf[4] == NSPTDA {
+	if ns.sAtts != nil && ns.sAtts.networkCompressionEnabled && len(buf) > ns.sAtts.networkCompressionThreshold && buf[4] == NSPTDA {
 		// Only data-packet payloads above the negotiated threshold may be compressed.
 		header := append([]byte(nil), buf[:NSPDADAT]...)
 		payload := buf[NSPDADAT:]
@@ -740,7 +734,6 @@ func (ns *networkSession) SendPacket(ctx context.Context, buf []byte) error {
 		compressedBytes := compressed.Bytes()
 		if len(compressedBytes) < len(payload) {
 			// Use compression only if it makes the payload smaller.
-			ns.compressionEnabled = true
 			if ns.sAtts.firstSendCompressedPacket {
 				ns.sAtts.firstSendCompressedPacket = false
 			}

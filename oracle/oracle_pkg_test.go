@@ -122,6 +122,7 @@ var testCases = []struct {
 	{"TestTimeoutConnectTimeoutPrecedence3", "functional/cyclops", false, TestTimeoutConnectTimeoutPrecedence3},
 	{"TestTimeoutConnectTimeoutPrecedence4", "functional", false, TestTimeoutConnectTimeoutPrecedence4},
 	{"TestDriver_Functional_SelectDual", "sanity,functional", false, TestDriver_Functional_SelectDual},
+	{"TestDriver_Functional_NetworkCompressionTCP", "functional", false, TestDriver_Functional_NetworkCompressionTCP},
 	{"TestDriver_SimpleConnection", "sanity,functional", false, TestDriver_SimpleConnection},
 	{"TestDriver_Authentication_TTIWRN", "functional", false, TestDriver_Authentication_TTIWRN},
 	{"TestDriver_Authentication_OCIToken", "functional", false, TestDriver_Authentication_OCIToken},
