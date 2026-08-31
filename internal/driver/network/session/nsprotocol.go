@@ -60,26 +60,27 @@ import (
 
 // networkSession represents a network session for communication with the server
 type networkSession struct {
-	connected                 bool
-	isBreak                   bool
-	isReset                   bool
-	breakPosted               bool
-	endOfRequestSupport       bool
-	supportsFastAuth          bool
-	redirectCount             int
-	resendCount               int
-	sAtts                     *sessionAtts
-	ntAdapter                 transport.NTAdapter
-	cData                     []byte
-	cDataNVPair               interface{}
-	sndDatapkt                *dataPacket
-	rcvDatapkt                *dataPacket
-	controlPkt                *controlPacket
-	byteOrder                 driverCommon.ByteOrder
-	rcvBuf                    []byte
-	sndBuf                    []byte
-	pendingPacket             []byte // to store pushed back packet from CheckinbandNotification
-	resetInProgress           bool
+	connected           bool
+	isBreak             bool
+	isReset             bool
+	breakPosted         bool
+	endOfRequestSupport bool
+	supportsFastAuth    bool
+	redirectCount       int
+	resendCount         int
+	sAtts               *sessionAtts
+	ntAdapter           transport.NTAdapter
+	cData               []byte
+	cDataNVPair         interface{}
+	sndDatapkt          *dataPacket
+	rcvDatapkt          *dataPacket
+	controlPkt          *controlPacket
+	byteOrder           driverCommon.ByteOrder
+	rcvBuf              []byte
+	sndBuf              []byte
+	pendingPacket       []byte // to store pushed back packet from CheckinbandNotification
+	resetInProgress     bool
+
 	firstRecvCompressedPacket bool
 }
 
@@ -91,14 +92,15 @@ const (
 // newNetworkSession creates a new networkSession instance
 func newNetworkSession() *networkSession {
 	return &networkSession{
-		connected:                 false,
-		isBreak:                   false,
-		isReset:                   false,
-		breakPosted:               false,
-		sndDatapkt:                &dataPacket{},
-		rcvDatapkt:                &dataPacket{},
-		controlPkt:                &controlPacket{},
-		byteOrder:                 driverCommon.BIG_ENDIAN,
+		connected:  false,
+		isBreak:    false,
+		isReset:    false,
+		breakPosted: false,
+		sndDatapkt: &dataPacket{},
+		rcvDatapkt: &dataPacket{},
+		controlPkt: &controlPacket{},
+		byteOrder:  driverCommon.BIG_ENDIAN,
+
 		firstRecvCompressedPacket: true,
 	}
 }
