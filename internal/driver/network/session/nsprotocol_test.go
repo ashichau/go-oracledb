@@ -87,6 +87,8 @@ func expectOracleErrorCode(t *testing.T, err error, want oracleErrors.ErrorCode)
 	if sqlErr.ErrorCode() != string(want) {
 		t.Errorf("Expected error code %s, got %s", want, sqlErr.ErrorCode())
 	}
+}
+
 type stubNetConn struct {
 	net.Conn
 	remoteAddr net.Addr
