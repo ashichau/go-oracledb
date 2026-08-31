@@ -80,7 +80,6 @@ type networkSession struct {
 	sndBuf              []byte
 	pendingPacket       []byte // to store pushed back packet from CheckinbandNotification
 	resetInProgress     bool
-
 	firstRecvCompressedPacket bool
 }
 
@@ -91,18 +90,18 @@ const (
 
 // newNetworkSession creates a new networkSession instance
 func newNetworkSession() *networkSession {
-	return &networkSession{
-		connected:  false,
-		isBreak:    false,
-		isReset:    false,
-		breakPosted: false,
-		sndDatapkt: &dataPacket{},
-		rcvDatapkt: &dataPacket{},
-		controlPkt: &controlPacket{},
-		byteOrder:  driverCommon.BIG_ENDIAN,
-
-		firstRecvCompressedPacket: true,
+	ns := &networkSession{
+		connected:          false,
+		isBreak:            false,
+		isReset:            false,
+		breakPosted:        false,
+		sndDatapkt:         &dataPacket{},
+		rcvDatapkt:         &dataPacket{},
+		controlPkt:         &controlPacket{},
+		byteOrder:          driverCommon.BIG_ENDIAN,
 	}
+	ns.firstRecvCompressedPacket = true
+	return ns
 }
 
 // GetRemoteAddress returns the connected remote network address when it is
