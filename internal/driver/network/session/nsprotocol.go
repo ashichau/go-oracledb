@@ -90,7 +90,7 @@ const (
 
 // newNetworkSession creates a new networkSession instance
 func newNetworkSession() *networkSession {
-	ns := &networkSession{
+	return &networkSession{
 		connected:          false,
 		isBreak:            false,
 		isReset:            false,
@@ -99,9 +99,8 @@ func newNetworkSession() *networkSession {
 		rcvDatapkt:         &dataPacket{},
 		controlPkt:         &controlPacket{},
 		byteOrder:          driverCommon.BIG_ENDIAN,
+		firstRecvCompressedPacket: true,
 	}
-	ns.firstRecvCompressedPacket = true
-	return ns
 }
 
 // GetRemoteAddress returns the connected remote network address when it is
