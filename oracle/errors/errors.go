@@ -120,6 +120,7 @@ const (
 	// MissingLocalizationService indicates the shelf was used before a localization
 	// service was registered.
 	MissingLocalizationService ErrorCode = "OGD-00067"
+	ANONegotiationFailed       ErrorCode = "OGD-00129"
 
 	// CancelOperationError error occurred while requesting the server to cancel
 	// the current operation

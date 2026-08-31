@@ -460,6 +460,11 @@ func initMessagesEn() {
 	// Action:   Try again.
 	// Comment:  N/A
 	message.SetString(language.English, string(oracleErrors.NegotiatorError), "An error occurred while negotiating the connection")
+	// Cause: The database requires Native Network Encryption or Data Integrity,
+	// which this driver does not support.
+	// Action: Update the server sqlnet.ora so encryption and checksumming are
+	// not REQUIRED.
+	message.SetString(language.English, string(oracleErrors.ANONegotiationFailed), "Advanced Networking Option service negotiation failed. Native Network Encryption and Data Integrity are not supported in this driver.")
 	// Document: No
 	// Cause:    An error occurred while marshalling or unmarshalling a value.
 	// Action:   Try again.

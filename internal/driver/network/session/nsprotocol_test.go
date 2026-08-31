@@ -71,6 +71,19 @@ type mockNTAdapter struct {
 	lastAddress   transport.Address
 }
 
+func TestHandleAcceptRequiredANO(t *testing.T) {
+	ns := newNetworkSession()
+	ns.sAtts = newSessionAtts("")
+	ns.sAtts.version = TNS_VERSION_MIN_DATA_FLAGS
+	p := &acceptPacket{
+		buf:   make([]byte, NSPACFL2+4),
+		flag0: NSINAREQUIRED,
+	}
+	if err := ns.handleAccept(context.Background(), p); err == nil || !strings.Contains(err.Error(), "OGD-00129") {
+		t.Fatalf("expected ANO negotiation error, got %v", err)
+	}
+}
+
 type mockNTTCPS struct {
 	mockNTAdapter
 	renegotiated bool

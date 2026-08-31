@@ -209,6 +209,9 @@ func (ns *networkSession) handleAccept(ctx context.Context, p *acceptPacket) err
 		ns.Disconnect(ctx, 0)
 		return err
 	}
+	if (p.flag0|p.flag1)&NSINAREQUIRED != 0 {
+		return common.NewOracleError(oracleErrors.ANONegotiationFailed, nil)
+	}
 	return nil
 }
 

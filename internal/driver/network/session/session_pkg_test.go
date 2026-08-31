@@ -60,6 +60,7 @@ var testCases = []struct {
 	f          func(t *testing.T)
 }{
 	{"TestNewNetworkSession", "unitary", false, TestNewNetworkSession},
+	{"TestHandleAcceptRequiredANO", "unitary", false, TestHandleAcceptRequiredANO},
 	{"TestAcceptPacketClampsOversizedValues", "unitary", false, TestAcceptPacketClampsOversizedValues},
 	{"TestSessionAttsSetFromParsedDescriptionKeepsDefaultDNMatch", "unitary", false, TestSessionAttsSetFromParsedDescriptionKeepsDefaultDNMatch},
 	{"TestTransportConnect", "unitary", false, TestTransportConnect},
