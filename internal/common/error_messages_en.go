@@ -445,7 +445,12 @@ func initMessagesEn() {
 	message.SetString(language.English, string(oracleErrors.CancelOperationError), "cancel operation failed")
 
 	// Document: No
-	message.SetString(language.English, string(oracleErrors.InternalError), "internal error: %s")
+	message.SetString(language.English, string(oracleErrors.InternalError), "internal error occurred.")
+	// Document: No
+	// Cause:    An unexpected state was encountered in the network driver.
+	// Action:   Try again or contact Oracle Support if the error persists.
+	// Comment:  Arg[0]: network component
+	message.SetString(language.English, string(oracleErrors.NetworkInternalError), "Internal network error: %s")
 	// Document: No
 	// Cause:    The shelf was used before a localization service was registered.
 	// Action:   Ensure the connection instantiator registers a localization service before returning the shelf.

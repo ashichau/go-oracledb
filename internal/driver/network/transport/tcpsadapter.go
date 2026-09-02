@@ -171,7 +171,7 @@ func (nt *nttcps) VerifyPostAcceptDNMatch() error {
 	}
 	tlsConn, ok := nt.stream.(*tls.Conn)
 	if !ok {
-		return common.NewOracleError(oracleErrors.InternalError, nil, "TCPS stream")
+		return common.NewOracleError(oracleErrors.NetworkInternalError, nil, "TCPS stream")
 	}
 	//ensure TLS handshake is complete.
 	if err := tlsConn.Handshake(); err != nil {
