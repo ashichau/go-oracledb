@@ -52,6 +52,7 @@ import (
 	driverCommon "github.com/oracle/go-oracledb/v26/internal/driver/common"
 	"github.com/oracle/go-oracledb/v26/internal/driver/network/naming"
 	"github.com/oracle/go-oracledb/v26/internal/driver/network/transport"
+	oracleErrors "github.com/oracle/go-oracledb/v26/oracle/errors"
 )
 
 type mockNTAdapter struct {
@@ -79,8 +80,12 @@ func TestHandleAcceptRequiredANO(t *testing.T) {
 		buf:   make([]byte, NSPACFL2+4),
 		flag0: NSINAREQUIRED,
 	}
-	if err := ns.handleAccept(context.Background(), p); err == nil || !strings.Contains(err.Error(), "OGD-00129") {
-		t.Fatalf("expected ANO negotiation error, got %v", err)
+	err := ns.handleAccept(context.Background(), p)
+	if err == nil {
+		t.Fatal("expected unsupported Native Network Encryption and Data Integrity error")
+	}
+	if got := err.(oracleErrors.SQLError).ErrorCode(); got != string(oracleErrors.UnsupportedFeature) {
+		t.Fatalf("got error code %s, want %s", got, oracleErrors.UnsupportedFeature)
 	}
 }
 

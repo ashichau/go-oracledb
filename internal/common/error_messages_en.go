@@ -404,7 +404,7 @@ func initMessagesEn() {
 	// Cause:    A requested feature is not implemented by the driver.
 	// Action:   Avoid using the unsupported feature or upgrade to a version that supports it.
 	// Comment:  Arg[0]: feature name
-	message.SetString(language.English, string(oracleErrors.UnsupportedFeature), "%s feature is not supported")
+	message.SetString(language.English, string(oracleErrors.UnsupportedFeature), "Feature not supported by the driver: %s")
 
 	// Document: No
 	// Cause:    The destination provided in sql.Out is invalid (nil, non-pointer,
@@ -460,11 +460,6 @@ func initMessagesEn() {
 	// Action:   Try again.
 	// Comment:  N/A
 	message.SetString(language.English, string(oracleErrors.NegotiatorError), "An error occurred while negotiating the connection")
-	// Cause: The database requires Native Network Encryption or Data Integrity,
-	// which this driver does not support.
-	// Action: Update the server sqlnet.ora so encryption and checksumming are
-	// not REQUIRED.
-	message.SetString(language.English, string(oracleErrors.ANONegotiationFailed), "Advanced Networking Option service negotiation failed. Native Network Encryption and Data Integrity are not supported in this driver.")
 	// Document: No
 	// Cause:    An error occurred while marshalling or unmarshalling a value.
 	// Action:   Try again.
