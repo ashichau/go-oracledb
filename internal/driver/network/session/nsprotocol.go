@@ -644,6 +644,7 @@ func (ns *networkSession) processPacket(buf []byte, hdr *header) (any, error) {
 			PrintPacket(payload, 0, len(payload))
 			if ns.firstRecvCompressedPacket {
 				// The first compressed payload has zlib framing; later payloads are raw DEFLATE.
+				// The reader decompresses payload bytes as they are read.
 				r, err = zlib.NewReader(bytes.NewReader(payload))
 				ns.firstRecvCompressedPacket = false
 			} else {
