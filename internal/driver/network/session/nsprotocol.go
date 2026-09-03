@@ -80,8 +80,6 @@ type networkSession struct {
 	sndBuf              []byte
 	pendingPacket       []byte // to store pushed back packet from CheckinbandNotification
 	resetInProgress     bool
-
-	firstRecvCompressedPacket bool
 }
 
 const (
@@ -100,8 +98,6 @@ func newNetworkSession() *networkSession {
 		rcvDatapkt:  &dataPacket{},
 		controlPkt:  &controlPacket{},
 		byteOrder:   driverCommon.BIG_ENDIAN,
-
-		firstRecvCompressedPacket: true,
 	}
 }
 
@@ -649,11 +645,11 @@ func (ns *networkSession) processPacket(buf []byte, hdr *header) (any, error) {
 			var r io.ReadCloser
 			var err error
 			PrintPacket(payload, 0, len(payload))
-			if ns.firstRecvCompressedPacket {
+			if ns.sAtts.firstRecvCompressedPacket {
 				// The first compressed payload has zlib framing; later payloads are raw DEFLATE.
 				// The reader decompresses payload bytes as they are read.
 				r, err = zlib.NewReader(bytes.NewReader(payload))
-				ns.firstRecvCompressedPacket = false
+				ns.sAtts.firstRecvCompressedPacket = false
 			} else {
 				r = flate.NewReader(bytes.NewReader(payload))
 			}

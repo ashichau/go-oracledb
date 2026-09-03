@@ -1388,8 +1388,10 @@ func TestProcessPacketCompressedTCP(t *testing.T) {
 			copy(buf[NSPDADAT:], compressed.Bytes())
 
 			ns := newNetworkSession()
-			ns.sAtts = &sessionAtts{networkCompressionEnabled: true}
-			ns.firstRecvCompressedPacket = test.first
+			ns.sAtts = &sessionAtts{
+				networkCompressionEnabled: true,
+				firstRecvCompressedPacket: test.first,
+			}
 			hdr := &header{typ: NSPTDA, packetLength: uint32(len(buf))}
 
 			packet, err := ns.processPacket(buf, hdr)
