@@ -654,12 +654,12 @@ func (ns *networkSession) processPacket(buf []byte, hdr *header) (any, error) {
 				r = flate.NewReader(bytes.NewReader(payload))
 			}
 			if err != nil {
-				return nil, fmt.Errorf("create decompressor: %w", err)
+				return nil, common.NewOracleError(oracleErrors.NetworkDecompressionFailed, err, "zlib")
 			}
 			decompressed, err := io.ReadAll(r)
 			if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
 				r.Close()
-				return nil, fmt.Errorf("decompress payload: %w", err)
+				return nil, common.NewOracleError(oracleErrors.NetworkDecompressionFailed, err, "zlib")
 			}
 			if closeErr := r.Close(); closeErr != nil && err == nil {
 				err = closeErr
@@ -733,7 +733,7 @@ func (ns *networkSession) SendPacket(ctx context.Context, buf []byte) error {
 		}
 
 		if err != nil {
-			return fmt.Errorf("compress payload: %w", err)
+			return common.NewOracleError(oracleErrors.NetworkCompressionFailed, err, "zlib")
 		}
 		compressedBytes := compressed.Bytes()
 		if len(compressedBytes) < len(payload) {

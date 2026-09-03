@@ -1414,6 +1414,24 @@ func TestProcessPacketCompressedTCP(t *testing.T) {
 	}
 }
 
+func TestProcessPacketCompressedTCPError(t *testing.T) {
+	buf := make([]byte, NSPDADAT+1)
+	binary.BigEndian.PutUint16(buf, uint16(len(buf)))
+	buf[NSPHDTYP] = NSPTDA
+	binary.BigEndian.PutUint16(buf[NSPDAFLG:], NSPDAFCMP)
+	buf[NSPDADAT] = 0xff
+
+	ns := newNetworkSession()
+	ns.sAtts = &sessionAtts{networkCompressionEnabled: true, firstRecvCompressedPacket: true}
+	_, err := ns.processPacket(buf, &header{typ: NSPTDA, packetLength: uint32(len(buf))})
+	if err == nil {
+		t.Fatal("expected decompression error")
+	}
+	if got := err.(oracleErrors.SQLError).ErrorCode(); got != string(oracleErrors.NetworkDecompressionFailed) {
+		t.Fatalf("error code: got %s, want %s", got, oracleErrors.NetworkDecompressionFailed)
+	}
+}
+
 // TestSendPacketCompressedTCP verifies first-packet zlib compression and its
 // NSPDAFCMP marker on an outgoing TCP data packet.
 func TestSendPacketCompressedTCP(t *testing.T) {
