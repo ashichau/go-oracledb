@@ -1,10 +1,5 @@
 package errors
 
-import "errors"
-
-// ErrConnectionInband identifies a server error received in-band.
-var ErrConnectionInband = errors.New("inband connection error")
-
 // SQLError errors returned by the driver should implement this interface.
 type SQLError interface {
 	error
@@ -115,6 +110,7 @@ const (
 	NetworkDataReadFailed                ErrorCode = "OGD-00046"
 	InvalidNetworkExpectedLength         ErrorCode = "OGD-00047"
 	InvalidNetworkContextExpectedLength  ErrorCode = "OGD-00048"
+	ErrConnectionInband                  ErrorCode = "OGD-00049" // server error received in-band
 	DNAttributeMissingFromCertificate    ErrorCode = "OGD-00111"
 	DNUnsupportedAttributeOID            ErrorCode = "OGD-00112"
 	DNDuplicateAttributeOID              ErrorCode = "OGD-00113"

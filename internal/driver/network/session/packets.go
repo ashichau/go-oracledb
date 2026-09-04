@@ -40,7 +40,6 @@ package session
 
 import (
 	"encoding/binary"
-	"errors"
 	"io"
 	"strconv"
 
@@ -495,9 +494,11 @@ func (cp *controlPacket) unmarshal(buffer []byte, _ *sessionAtts, hdr *header) e
 			cp.errno = err1
 			cp.isNotification = false
 			if emfi == ORA_ERROR_EMFI_NUMBER {
-				return errors.Join(oracleErrors.ErrConnectionInband, common.NewOracleError(oracleErrors.NetworkServerErrorCode, nil, "ORA", strconv.FormatInt(int64(err1), 10)))
+				return common.NewOracleError(oracleErrors.ErrConnectionInband,
+					common.NewOracleError(oracleErrors.NetworkServerErrorCode, nil, "ORA", strconv.FormatInt(int64(err1), 10)))
 			} else {
-				return errors.Join(oracleErrors.ErrConnectionInband, common.NewOracleError(oracleErrors.NetworkServerErrorCode, nil, "TNS", strconv.FormatInt(int64(err1), 10)))
+				return common.NewOracleError(oracleErrors.ErrConnectionInband,
+					common.NewOracleError(oracleErrors.NetworkServerErrorCode, nil, "TNS", strconv.FormatInt(int64(err1), 10)))
 			}
 		}
 	default:

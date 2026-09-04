@@ -253,6 +253,7 @@ func initMessagesEn() {
 	message.SetString(language.English, string(oracleErrors.InvalidNetworkLength), "Invalid length for %s: %d")
 	message.SetString(language.English, string(oracleErrors.InvalidNetworkExpectedLength), "Invalid length for %s: got %d, expected %d")
 	message.SetString(language.English, string(oracleErrors.InvalidNetworkContextExpectedLength), "Invalid length for %s (%s): got %d, expected %d")
+	message.SetString(language.English, string(oracleErrors.ErrConnectionInband), "server error received in-band")
 	message.SetString(language.English, string(oracleErrors.NetworkDataReadFailed), "Failed to read network data")
 	message.SetString(language.English, string(oracleErrors.ConnectionRefusedDetail), "connection refused: ORA-%s, user reason %d, system reason %d")
 	message.SetString(language.English, string(oracleErrors.NetworkServerErrorCode), "%s-%s")

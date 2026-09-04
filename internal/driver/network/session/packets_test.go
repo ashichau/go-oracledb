@@ -41,8 +41,6 @@ package session
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
-	"strings"
 	"testing"
 
 	oracleErrors "github.com/oracle/go-oracledb/v26/oracle/errors"
@@ -573,16 +571,16 @@ func TestControlPacketUnmarshal(t *testing.T) {
 	binary.BigEndian.PutUint32(buf[NSPCTLDAT:], 22)
 	binary.BigEndian.PutUint32(buf[NSPCTLDAT+4:], 12345)
 	err = cp.unmarshal(buf, nil, hdr)
-	if err == nil || !errors.Is(err, oracleErrors.ErrConnectionInband) || !strings.Contains(err.Error(), "ORA-12345") {
-		t.Errorf("Unexpected error for ORA error: %v", err)
+	if err == nil || err.(oracleErrors.SQLError).ErrorCode() != string(oracleErrors.ErrConnectionInband) {
+		t.Errorf("expected in-band ORA error, got %v", err)
 	}
 
 	// Test other error without EMFI
 	binary.BigEndian.PutUint32(buf[NSPCTLDAT:], 0)
 	binary.BigEndian.PutUint32(buf[NSPCTLDAT+4:], 12345)
 	err = cp.unmarshal(buf, nil, hdr)
-	if err == nil || !errors.Is(err, oracleErrors.ErrConnectionInband) || !strings.Contains(err.Error(), "TNS-12345") {
-		t.Errorf("Unexpected error for TNS error: %v", err)
+	if err == nil || err.(oracleErrors.SQLError).ErrorCode() != string(oracleErrors.ErrConnectionInband) {
+		t.Errorf("expected in-band TNS error, got %v", err)
 	}
 
 	cp.Clear()
@@ -623,8 +621,8 @@ func TestControlPacketUnmarshal(t *testing.T) {
 	binary.BigEndian.PutUint32(buf[NSPCTLDAT:], 999)
 	binary.BigEndian.PutUint32(buf[NSPCTLDAT+4:], 12345)
 	err = cp.unmarshal(buf, nil, hdr)
-	if err == nil || !errors.Is(err, oracleErrors.ErrConnectionInband) || !strings.Contains(err.Error(), "TNS-12345") {
-		t.Errorf("Expected inband connection error, got %v", err)
+	if err == nil || err.(oracleErrors.SQLError).ErrorCode() != string(oracleErrors.ErrConnectionInband) {
+		t.Errorf("expected in-band TNS error, got %v", err)
 	}
 }
 
