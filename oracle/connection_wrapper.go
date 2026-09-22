@@ -36,40 +36,45 @@
 ** SOFTWARE.
  */
 
-package errors
+package oracle
 
 import (
-	"fmt"
-	"os"
-	"testing"
+	"database/sql"
 
-	oracleTest "github.com/oracle/go-oracledb/v26/internal/tests"
+	"github.com/oracle/go-oracledb/v26/internal/common"
+	oracleErrors "github.com/oracle/go-oracledb/v26/oracle/errors"
 )
 
-func TestMain(m *testing.M) {
-	err := oracleTest.InitConfig()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "InitConfig failed: %v\n", err)
-		os.Exit(1)
-	}
-	TestEnvironement = oracleTest.TestEnvironement
-	TestingConfig = oracleTest.TestingConfig
-	DefaultTestConfig = oracleTest.DefaultTestConfig
-	TestCategories = oracleTest.TestCategories
-	os.Exit(m.Run())
+// connectionWrapper provides Oracle specific operations for a dedicated
+// database/sql connection.
+//
+// The wrapped connection must be a connection returned by this driver.
+type connectionWrapper struct {
+	connection *sql.Conn
 }
 
-var testCases = []oracleTest.CategorizedTestCase{}
-
-func TestCategoryExecutor(t *testing.T) {
-	oracleTest.RunCategoryExecutor(t, oracleTest.TestCategories, testCases)
+// NewConnectionWrapper validates and wraps a dedicated database/sql connection
+// for Oracle specific operations.
+//
+// Parameters:
+//   - connection: Dedicated database/sql connection to wrap.
+//
+// Returns:
+//   - *connectionWrapper: Wrapper for the supplied connection.
+//   - error: Error if the underlying driver connection type is not supported.
+func NewConnectionWrapper(connection *sql.Conn) (*connectionWrapper, error) {
+	var wrapper *connectionWrapper
+	err := connection.Raw(func(c any) error {
+		// Include here all functions/interfaces we want a connection to implement in
+		// order to be wrapped by this wrapper
+		type canBeWrapped interface {
+		}
+		_, ok := c.(canBeWrapped)
+		if !ok {
+			return common.NewOracleError(oracleErrors.InvalidConnection, nil)
+		}
+		wrapper = &connectionWrapper{connection: connection}
+		return nil
+	})
+	return wrapper, err
 }
-
-type Version = oracleTest.Version
-type TestConfig = oracleTest.TestConfig
-type TestingEnvironment = oracleTest.TestingEnvironment
-
-var DefaultTestConfig *TestConfig
-var TestEnvironement TestingEnvironment
-var TestingConfig *TestConfig
-var TestCategories oracleTest.TestCategoryList
