@@ -107,7 +107,9 @@ func buildCIDNode() naming.Node {
 	}
 }
 
-// cachedCIDNode is built once from the process metadata initialized by common.
+// cachedCIDNode is initialized once when this package is loaded from the
+// process metadata initialized by common. Connection attempts reuse this
+// immutable process-level CID node.
 var cachedCIDNode = buildCIDNode()
 
 const (
