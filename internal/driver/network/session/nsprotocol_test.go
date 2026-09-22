@@ -51,8 +51,8 @@ import (
 	"strings"
 	"testing"
 
-	driverCommon "github.com/oracle/go-oracledb/v26/internal/driver/common"
 	"github.com/oracle/go-oracledb/v26/internal/common"
+	driverCommon "github.com/oracle/go-oracledb/v26/internal/driver/common"
 	"github.com/oracle/go-oracledb/v26/internal/driver/network/naming"
 	"github.com/oracle/go-oracledb/v26/internal/driver/network/transport"
 	oracleErrors "github.com/oracle/go-oracledb/v26/oracle/errors"
