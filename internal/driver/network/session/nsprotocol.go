@@ -104,6 +104,9 @@ func buildCIDNode() naming.Node {
 	}
 }
 
+// cachedCIDNode is built once from the process metadata initialized by common.
+var cachedCIDNode = buildCIDNode()
+
 const (
 	maxRedirectCount = 4
 	maxResendCount   = 4
@@ -517,7 +520,7 @@ func ConnectToOptionWithConnectionID(ctx context.Context, option *naming.Connect
 		root.Children = append(root.Children, naming.Node{Name: "CONNECT_DATA"})
 		connectData = &root.Children[len(root.Children)-1]
 	}
-	connectData.Children = append(connectData.Children, buildCIDNode())
+	connectData.Children = append(connectData.Children, cachedCIDNode)
 	connIDNode := naming.Node{Name: "CONNECTION_ID", Value: ns.sAtts.nt.Connectionid}
 	connectData.Children = append(connectData.Children, connIDNode)
 	newConnectStr := root.ToString()

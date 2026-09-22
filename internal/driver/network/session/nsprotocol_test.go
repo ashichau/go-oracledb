@@ -341,6 +341,8 @@ func TestConnectToOption(t *testing.T) {
 	})
 }
 
+// TestCIDNode verifies that buildCIDNode assembles the Oracle Net CID node
+// with sanitized PROGRAM, HOST, and USER values in the expected descriptor format.
 func TestCIDNode(t *testing.T) {
 	originalProgramName, originalHostName, originalUserName := common.ProgramName, common.HostName, common.UserName
 	t.Cleanup(func() {
@@ -356,6 +358,8 @@ func TestCIDNode(t *testing.T) {
 	}
 }
 
+// TestSanitizeCIDValue verifies trimming, empty-value handling, and replacement of
+// characters that would affect Oracle Net descriptor structure.
 func TestSanitizeCIDValue(t *testing.T) {
 	for _, test := range []struct {
 		value string

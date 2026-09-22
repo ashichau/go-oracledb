@@ -28,12 +28,12 @@ func initSystemInformation() {
 		}
 	}
 
-	HostName = "unknown"
+	HostName = "oraclegoclient"
 	if hostname, err := os.Hostname(); err == nil && hostname != "" {
 		HostName = hostname
 	}
 
-	UserName = "oraclegoclient"
+	UserName = "unknown"
 	if currentUser, err := user.Current(); err == nil && currentUser.Username != "" {
 		UserName = currentUser.Username
 	}
