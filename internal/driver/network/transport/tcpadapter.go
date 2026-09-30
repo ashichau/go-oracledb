@@ -59,6 +59,13 @@ const (
 	TCPCHA                   = 1<<1 | 1<<2 | 1<<3 | 1<<8 | 1<<9 | 1<<12
 )
 
+func httpsProxyPortOrDefault(port int) int {
+	if port == 0 {
+		return DEFAULT_HTTPS_PROXY_PORT
+	}
+	return port
+}
+
 // nttcp represents a TCP network transport adapter
 type nttcp struct {
 	cha        int
@@ -246,13 +253,8 @@ func (nt *nttcp) nTConnect(ctx context.Context, address Address) error {
 	}
 	dialAddress := address.String()
 	if httpsProxy != "" {
-		if httpsProxyPort == 0 {
-			httpsProxyPort = DEFAULT_HTTPS_PROXY_PORT
-		}
+		httpsProxyPort = httpsProxyPortOrDefault(httpsProxyPort)
 		dialAddress = net.JoinHostPort(httpsProxy, strconv.Itoa(httpsProxyPort))
-		fmt.Println("Configured DB target:", target)
-		fmt.Println("Configured HTTPS proxy:", dialAddress)
-		fmt.Println("Dialing TCP proxy:", dialAddress)
 	}
 	common.Odl.Debug("dialing remote host")
 	conn, err := dialer.DialContext(dialCtxToBeUsed, "tcp", dialAddress)
@@ -283,7 +285,6 @@ func (nt *nttcp) nTConnect(ctx context.Context, address Address) error {
 			return common.NewOracleError(oracleErrors.HTTPSProxyConnectFailed, reqErr, target)
 		}
 		request.Host = target
-		fmt.Println("HTTPS proxy CONNECT request target:", target)
 		if reqErr = request.Write(conn); reqErr != nil {
 			_ = conn.Close()
 			return common.NewOracleError(oracleErrors.HTTPSProxyConnectFailed, reqErr, target)
@@ -294,7 +295,6 @@ func (nt *nttcp) nTConnect(ctx context.Context, address Address) error {
 			_ = conn.Close()
 			return common.NewOracleError(oracleErrors.HTTPSProxyConnectFailed, respErr, target)
 		}
-		fmt.Println("HTTPS proxy CONNECT response:", response.Status)
 		if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
 			_ = response.Body.Close()
 			_ = conn.Close()
