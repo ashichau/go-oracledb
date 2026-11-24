@@ -174,6 +174,221 @@ func TestDriver_PLSQL_BreakCausedByTimeout(t *testing.T) {
 
 }
 
+// TestDriver_CancelRowLockWait reproduces go-oracledb issue #83. Connection A
+// holds a row lock while connection B waits for that row and is cancelled. A
+// correct Break/Reset exchange returns ORA-01013 before the guard releases A's
+// transaction; it must not decode a TNS marker as TTC data.
+func TestDriver_CancelRowLockWait(t *testing.T) {
+	testDriverCancelRowLockWait(t, false)
+}
+
+// TestDriver_CancelRowLockWaitDeadline is the deadline variant from
+// go-oracledb issue #83. It must not wait for the blocker guard to release.
+func TestDriver_CancelRowLockWaitDeadline(t *testing.T) {
+	testDriverCancelRowLockWait(t, true)
+}
+
+func testDriverCancelRowLockWait(t *testing.T, useDeadline bool) {
+	if TestingConfig == nil {
+		t.Skip("No configuration available")
+	}
+
+	const (
+		cancelAfter       = 150 * time.Millisecond
+		maxCancelDuration = time.Second
+		blockerGuard      = 5 * time.Second
+	)
+
+	db, err := openTestDBWithConfig(TestingConfig)
+	if err != nil {
+		t.Fatalf("failed to open test DB: %v", err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(2)
+
+	table := createObjectName("cancel_lock")
+	ctx := context.Background()
+	if _, err = db.ExecContext(ctx, "CREATE TABLE "+table+" (id NUMBER PRIMARY KEY, value NUMBER)"); err != nil {
+		t.Fatalf("create table: %v", err)
+	}
+	defer func() {
+		if _, err := db.ExecContext(context.Background(), "DROP TABLE "+table+" PURGE"); err != nil {
+			t.Errorf("drop table: %v", err)
+		}
+	}()
+	if _, err = db.ExecContext(ctx, "INSERT INTO "+table+" (id, value) VALUES (1, 0)"); err != nil {
+		t.Fatalf("insert row: %v", err)
+	}
+
+	connA, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatalf("open blocker connection: %v", err)
+	}
+	defer connA.Close()
+	txA, err := connA.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin blocker transaction: %v", err)
+	}
+	if _, err = txA.ExecContext(ctx, "UPDATE "+table+" SET value = 1 WHERE id = 1"); err != nil {
+		t.Fatalf("lock row: %v", err)
+	}
+
+	// Always release the lock, but only after enough time to distinguish a
+	// prompt cancellation from one that merely returns when the lock is released.
+	releaseBlocker := make(chan struct{})
+	blockerReleased := make(chan struct{})
+	go func() {
+		select {
+		case <-releaseBlocker:
+		case <-time.After(blockerGuard):
+		}
+		_ = txA.Rollback()
+		close(blockerReleased)
+	}()
+	defer func() {
+		close(releaseBlocker)
+		<-blockerReleased
+	}()
+
+	connB, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatalf("open cancelled connection: %v", err)
+	}
+	defer connB.Close()
+
+	var cancelCtx context.Context
+	var cancel context.CancelFunc
+	if useDeadline {
+		cancelCtx, cancel = context.WithTimeout(ctx, cancelAfter)
+	} else {
+		cancelCtx, cancel = context.WithCancel(ctx)
+	}
+	var cancelTimer *time.Timer
+	if !useDeadline {
+		cancelTimer = time.AfterFunc(cancelAfter, cancel)
+	}
+	start := time.Now()
+	_, err = connB.ExecContext(cancelCtx, "UPDATE "+table+" SET value = 2 WHERE id = 1")
+	elapsed := time.Since(start)
+	if cancelTimer != nil {
+		cancelTimer.Stop()
+	}
+	cancel()
+	mode := "explicit cancellation"
+	if useDeadline {
+		mode = "context deadline"
+	}
+	t.Logf("row-lock %s returned after %s: %v", mode, elapsed, err)
+
+	if err == nil {
+		t.Fatal("cancelled row-lock update succeeded")
+	}
+	if elapsed > maxCancelDuration {
+		t.Fatalf("cancellation returned after %s; expected before the %s blocker guard: %v", elapsed, blockerGuard, err)
+	}
+
+	sqlError, ok := err.(oracleErrors.SQLError)
+	if !ok {
+		t.Fatalf("expected Oracle cancellation error, got %T: %v", err, err)
+	}
+	if sqlError.ErrorCode() != "ORA-01013" {
+		t.Fatalf("expected ORA-01013 after cancellation, got %s: %v", sqlError.ErrorCode(), err)
+	}
+}
+
+// TestDriver_CancelSleepDeadline is the DBMS_SESSION.SLEEP case from
+// go-oracledb issue #83. The five-second sleep must not determine when a
+// 150-millisecond statement deadline returns.
+func TestDriver_CancelSleepDeadline(t *testing.T) {
+	if TestingConfig == nil {
+		t.Skip("No configuration available")
+	}
+
+	db, err := openTestDBWithConfig(TestingConfig)
+	if err != nil {
+		t.Fatalf("failed to open test DB: %v", err)
+	}
+	defer db.Close()
+
+	conn, err := db.Conn(context.Background())
+	if err != nil {
+		t.Fatalf("open test connection: %v", err)
+	}
+	defer conn.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, err = conn.ExecContext(ctx, "BEGIN DBMS_SESSION.SLEEP(5); END;")
+	elapsed := time.Since(start)
+	t.Logf("DBMS_SESSION.SLEEP cancellation returned after %s: %v", elapsed, err)
+
+	if err == nil {
+		t.Fatal("cancelled DBMS_SESSION.SLEEP succeeded")
+	}
+	if elapsed > time.Second {
+		t.Fatalf("cancellation returned after %s; expected a bounded response: %v", elapsed, err)
+	}
+
+	sqlError, ok := err.(oracleErrors.SQLError)
+	if !ok {
+		t.Fatalf("expected Oracle cancellation error, got %T: %v", err, err)
+	}
+	if sqlError.ErrorCode() != "ORA-01013" {
+		t.Fatalf("expected ORA-01013 after cancellation, got %s: %v", sqlError.ErrorCode(), err)
+	}
+}
+
+// TestDriver_CancelActivePLSQLLoopDeadline is the active-work control case from
+// go-oracledb issue #83. Unlike a lock wait or DBMS_SESSION.SLEEP, this loop is
+// executing PL/SQL when the context expires and should be interrupted promptly.
+func TestDriver_CancelActivePLSQLLoopDeadline(t *testing.T) {
+	if TestingConfig == nil {
+		t.Skip("No configuration available")
+	}
+
+	db, err := openTestDBWithConfig(TestingConfig)
+	if err != nil {
+		t.Fatalf("failed to open test DB: %v", err)
+	}
+	defer db.Close()
+
+	conn, err := db.Conn(context.Background())
+	if err != nil {
+		t.Fatalf("open test connection: %v", err)
+	}
+	defer conn.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, err = conn.ExecContext(ctx, `
+DECLARE
+    n PLS_INTEGER := 0;
+BEGIN
+    LOOP
+        n := n + 1;
+    END LOOP;
+END;`)
+	elapsed := time.Since(start)
+	t.Logf("active PL/SQL loop cancellation returned after %s: %v", elapsed, err)
+
+	if err == nil {
+		t.Fatal("cancelled active PL/SQL loop succeeded")
+	}
+	if elapsed > time.Second {
+		t.Fatalf("cancellation returned after %s; expected a prompt response: %v", elapsed, err)
+	}
+
+	sqlError, ok := err.(oracleErrors.SQLError)
+	if !ok {
+		t.Fatalf("expected Oracle cancellation error, got %T: %v", err, err)
+	}
+	if sqlError.ErrorCode() != "ORA-01013" {
+		t.Fatalf("expected ORA-01013 after cancellation, got %s: %v", sqlError.ErrorCode(), err)
+	}
+}
+
 // TestDriver_PLSQL_Prepared_Binds
 // Purpose: Validate prepared statement binds (named and ordinal) with a PL/SQL anonymous block.
 // Steps:
